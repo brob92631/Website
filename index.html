@@ -1,117 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minecraft Server Apex Intel</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Server Intel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/inter/variable.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static/icons.css">
+  <script src="script.js" defer></script>
 </head>
 <body class="dark-theme">
-    <canvas id="colorCanvas"></canvas>
-    <button id="themeSwitcher" class="theme-switcher">☀️ Light Mode</button>
-    <div class="container">
-        <header>
-            <h1>Apex Server Intel</h1>
-            <p>Unrivaled insights for Minecraft Java Edition servers.</p>
-        </header>
+  <header class="main-header">
+    <h1 class="title">Minecraft Server Intel</h1>
+    <p class="subtitle">Insightful server stats in real time</p>
+    <button id="themeSwitcher" class="theme-toggle" aria-label="Toggle theme">
+      <i data-lucide="sun" class="icon"></i>
+    </button>
+  </header>
 
-        <div class="input-area">
-            <input type="text" id="serverIpInput" placeholder="omega.server.xyz or 98.76.54.32:25565">
-            <button id="checkButton">Probe Hyperspace 🌠</button>
+  <main class="main-container">
+    <section class="input-card">
+      <input type="text" id="serverIpInput" class="input" placeholder="Enter server IP or hostname">
+      <button id="checkButton" class="primary-btn">Scan Server</button>
+    </section>
+
+    <section id="loader" class="loader hidden">
+      <div class="spinner"></div>
+      <p>Contacting server...</p>
+    </section>
+
+    <section id="errorMessageContainer"></section>
+
+    <section id="resultsArea" class="results hidden">
+      <div class="server-info">
+        <img id="serverFavicon" src="" alt="Server Icon" class="favicon">
+        <div>
+          <h2 id="serverAddressDisplay">Server Address</h2>
+          <div id="addressTypeIndicator" class="label hidden"></div>
+          <div class="status-line">
+            <span>Status:</span>
+            <span id="serverStatus" class="status"></span>
+          </div>
         </div>
-        
-        <div class="data-section hidden" id="favoritesSection">
-            <h2>⭐ Favorite Servers</h2>
-            <ul id="favoritesList" class="data-list"></ul>
+      </div>
+
+      <div class="grid-info">
+        <div><strong>Players:</strong> <span id="serverPlayers"></span></div>
+        <div><strong>Version:</strong> <span id="serverVersionName"></span></div>
+        <div><strong>Protocol:</strong> <span id="serverProtocol"></span></div>
+        <div><strong>Ping:</strong> <span id="apiDuration"></span> <span id="latencyFeel"></span></div>
+      </div>
+
+      <section class="motd-block">
+        <h3>MOTD</h3>
+        <div class="motd-tabs">
+          <button id="motdToggleRawButton" class="tab-btn">Raw</button>
+          <button id="motdToggleCleanButton" class="tab-btn">Clean</button>
         </div>
-        <div class="data-section hidden" id="historySection">
-            <h2>📜 Query History</h2>
-            <ul id="historyList" class="data-list"></ul>
-        </div>
+        <pre id="serverMotd" class="motd-display"></pre>
+        <div id="motdCodeStats" class="motd-code-stats"></div>
+      </section>
+    </section>
 
-        <div class="loader" id="loader"><div class="loader-animation"></div>Initiating quantum entanglement with server...</div>
-        <div id="errorMessageContainer"></div>
+    <section class="history-section">
+      <h3>Query History</h3>
+      <ul id="historyList"></ul>
+    </section>
 
-        <div class="results-area hidden" id="resultsArea">
-            <div class="server-header">
-                <div class="server-icon-container">
-                    <img id="serverFavicon" src="" alt="Server Icon" class="server-icon" crossorigin="anonymous">
-                    <span id="faviconDimensions" class="favicon-dimensions hidden"></span>
-                </div>
-                <div class="server-main-info">
-                    <h3>
-                        <span id="serverAddressDisplay">Server Address</span>
-                        <span id="addressTypeIndicator" class="address-type-indicator hidden"></span>
-                        <button id="copyIpButton" class="action-button tooltip" title="Copy Address"><span class="tooltiptext" id="copyTooltip">Copy Address</span>📋</button>
-                        <button id="shareStatusButton" class="action-button tooltip" title="Share Status"><span class="tooltiptext" id="shareTooltip">Copy Summary</span>🔗</button>
-                        <button id="favoriteButton" class="fav-button tooltip" title="Add to Favorites"><span class="tooltiptext" id="favTooltip">Favorite</span>⭐</button>
-                    </h3>
-                    <div id="resolvedIpDisplay" class="resolved-ip-display hidden"></div>
-                    <div class="info-block" style="padding:10px 0; background:none; margin-bottom:0;"><strong>Status:</strong> <span id="serverStatus"></span></div>
-                </div>
-            </div>
+    <section class="favorites-section">
+      <h3>Favorites</h3>
+      <ul id="favoritesList"></ul>
+    </section>
+  </main>
 
-            <h2>📊 Server Telemetry</h2>
-            <div class="info-grid">
-                <div class="info-block">
-                    <strong>Players:</strong> <span id="serverPlayers"></span> <span id="serverSizeIndicator" class="server-size-indicator"></span>
-                    <div class="player-slot-usage">
-                        <strong>Capacity:</strong> <span id="playerSlotPercentage"></span>
-                        <div class="progress-bar-container"><div id="playerProgressBar" class="progress-bar"></div></div>
-                    </div>
-                     <div id="speculativeTTF" class="hidden" style="font-size:0.85rem; margin-top:8px; opacity:0.7;"></div>
-                </div>
-                <div class="info-block"><strong>Version:</strong> <span id="serverVersionName"></span></div>
-                <div class="info-block"><strong>Protocol ID:</strong> <span id="serverProtocol"></span></div>
-                <div class="info-block">
-                    <strong>API Ping:</strong> <span id="apiDuration"></span> <span id="latencyFeel" class="latency-feel"></span><br>
-                    <small>Last API Update: <span id="relativeTimeSinceUpdate"></span> (<span id="apiLastUpdated"></span>)</small>
-                </div>
-            </div>
-            
-            <div class="info-block keyword-tags-container hidden" id="keywordTagsContainer">
-                <strong>Detected Keywords:</strong> <span id="keywordTags"></span>
-            </div>
-
-            <div class="motd-container info-block">
-                <div class="motd-header">
-                    <strong>MOTD:</strong>
-                    <div class="motd-stats-group">
-                         <span class="motd-stats">(<span id="motdLines">0</span>L, <span id="motdChars">0</span>C, <span id="motdWords">0</span>W)</span>
-                         <button id="motdToggleRawButton" class="action-button">Raw</button>
-                         <button id="motdToggleCleanButton" class="action-button">Clean</button>
-                    </div>
-                </div>
-                <div id="motdCodeStats" class="motd-code-stats"></div>
-                <pre id="serverMotd" class="motd-display"></pre>
-            </div>
-            
-            <div id="playerSampleSection" class="info-block player-list-container hidden">
-                <h3>👥 Online Players (<span id="playerSampleCount">0</span> sampled)</h3>
-                <ul id="playerSampleList" class="player-list"></ul>
-            </div>
-            
-            <div class="server-notes-section info-block" id="serverNotesSection">
-                 <h3>📝 Personal Notes for <span id="notesForServerAddress">this server</span></h3>
-                 <textarea id="serverNoteInput" placeholder="Jot down your private thoughts, reminders, or server specifics here..."></textarea>
-                 <button id="saveNoteButton" class="action-button save-note-button">Save Note</button>
-            </div>
-            
-            <div style="margin-top: 20px; text-align: right;">
-                <button id="exportJsonButton" class="action-button">📥 Export JSON</button>
-            </div>
-        </div>
-
-        <div class="data-section">
-            <h2>✨ Community Hubs</h2>
-            <ul id="popularServerListEl" class="data-list"></ul>
-        </div>
-
-        <footer>
-            Crafted with <a href="https://mcapi.us/" target="_blank" rel="noopener noreferrer">mcapi.us</a>, client-side mastery & a dash of stardust.
-        </footer>
-    </div>
-    <script src="script.js" defer></script>
+  <footer>
+    <p>Powered by <a href="https://mcapi.us">mcapi.us</a></p>
+  </footer>
 </body>
 </html>
