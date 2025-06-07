@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-// ===================================================================
-// THE FIRST PART OF THE FIX IS HERE: We import the specific type.
-// ===================================================================
-import videojs, { type VideoJsPlayer } from 'video.js';
+import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
+
+// ===================================================================
+// THE FIX IS HERE: We create our own perfect type for the player
+// by looking at what the `videojs()` function returns.
+// This is the most robust way to do this in modern TypeScript.
+// ===================================================================
+type VideoJsPlayer = ReturnType<typeof videojs>;
 
 interface VideoPlayerProps {
   src: string;
@@ -13,9 +17,7 @@ interface VideoPlayerProps {
 
 export const VideoPlayer = ({ src }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLDivElement>(null);
-  // ===================================================================
-  // THE SECOND PART OF THE FIX IS HERE: We use the correct type.
-  // ===================================================================
+  // We now use our new, correctly derived type.
   const playerRef = useRef<VideoJsPlayer | null>(null);
 
   useEffect(() => {
