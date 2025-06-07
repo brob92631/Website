@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import videojs from 'video.js';
+// ===================================================================
+// THE FIRST PART OF THE FIX IS HERE: We import the specific type.
+// ===================================================================
+import videojs, { type VideoJsPlayer } from 'video.js';
 import 'video.js/dist/video-js.css';
 
 interface VideoPlayerProps {
@@ -10,17 +13,18 @@ interface VideoPlayerProps {
 
 export const VideoPlayer = ({ src }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<videojs.Player | null>(null);
+  // ===================================================================
+  // THE SECOND PART OF THE FIX IS HERE: We use the correct type.
+  // ===================================================================
+  const playerRef = useRef<VideoJsPlayer | null>(null);
 
   useEffect(() => {
     // Ensure the player is only initialized once
     if (!playerRef.current && videoRef.current) {
-      // Create a video element and append it to the ref
       const videoElement = document.createElement("video-js");
       videoElement.classList.add('vjs-fill');
       videoRef.current.appendChild(videoElement);
 
-      // Initialize the Video.js player
       playerRef.current = videojs(videoElement, {
         autoplay: true,
         controls: true,
