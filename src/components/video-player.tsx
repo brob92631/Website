@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import ReactHlsPlayer from 'react-hls-player';
+import ReactPlayer from 'react-player/lazy';
 
 interface VideoPlayerProps {
   src: string;
@@ -9,12 +9,15 @@ interface VideoPlayerProps {
 
 export const VideoPlayer = ({ src }: VideoPlayerProps) => {
   return (
-    <ReactHlsPlayer
-      src={src}
-      autoPlay={true}
-      controls={true}
-      width="100%"
-      height="auto"
-    />
+    <div className='player-wrapper'>
+      <ReactPlayer
+        className='react-player'
+        url={src}
+        playing={true}
+        controls={true}
+        width='100%'
+        height='100%'
+      />
+    </div>
   );
 };
