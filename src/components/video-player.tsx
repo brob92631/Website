@@ -28,8 +28,9 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
 
     if (Hls.isSupported()) {
       const hls = new Hls({
+        debug: false,
         enableWorker: false,
-        lowLatencyMode: true,
+        lowLatencyMode: false,
         backBufferLength: 90,
         maxBufferLength: 30,
         maxMaxBufferLength: 120,
@@ -37,14 +38,21 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
         maxBufferHole: 0.5,
         highBufferWatchdogPeriod: 2,
         nudgeOffset: 0.1,
-        nudgeMaxRetry: 3,
+        nudgeMaxRetry: 5,
         maxFragLookUpTolerance: 0.25,
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 10,
         liveDurationInfinity: true,
+        manifestLoadingTimeOut: 20000,
+        manifestLoadingMaxRetry: 4,
+        manifestLoadingRetryDelay: 1000,
+        fragLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 6,
+        fragLoadingRetryDelay: 1000,
         xhrSetup: (xhr: XMLHttpRequest, url: string) => {
           xhr.withCredentials = false;
-          xhr.timeout = 10000;
+          xhr.timeout = 20000;
+          console.log('HLS XHR request to:', url);
         }
       });
 
@@ -70,31 +78,58 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error('HLS Error:', data);
+        console.error('HLS Error Details:', {
+          type: data.type,
+          details: data.details,
+          fatal: data.fatal,
+          url: data.url,
+          response: data.response
+        });
         
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
               console.log('Fatal network error, trying to recover...');
-              setError('Network error - retrying...');
-              setTimeout(() => {
-                hls.startLoad();
-                setError(null);
-              }, 2000);
+              if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
+                setError('Cannot load stream - source may be offline');
+                setIsLoading(false);
+              } else {
+                setError('Network error - retrying...');
+                setTimeout(() => {
+                  try {
+                    hls.startLoad();
+                    setError(null);
+                  } catch (e) {
+                    console.error('Recovery failed:', e);
+                    setError('Stream unavailable');
+                    setIsLoading(false);
+                  }
+                }, 3000);
+              }
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
               console.log('Fatal media error, trying to recover...');
               setError('Media error - retrying...');
               setTimeout(() => {
-                hls.recoverMediaError();
-                setError(null);
+                try {
+                  hls.recoverMediaError();
+                  setError(null);
+                } catch (e) {
+                  console.error('Media recovery failed:', e);
+                  setError('Playback failed');
+                  setIsLoading(false);
+                }
               }, 2000);
               break;
             default:
-              console.log('Fatal error, cannot recover');
-              setError('Playback failed - stream may be unavailable');
+              console.log('Fatal error, cannot recover:', data.details);
+              setError('Stream playback failed - source may be unavailable');
               setIsLoading(false);
               break;
           }
+        } else {
+          // Non-fatal errors - just log them
+          console.warn('Non-fatal HLS error:', data.details);
         }
       });
 
