@@ -1,4 +1,3 @@
-// Update this file to remove the proxy from the player URL.
 "use client";
 
 import { useState } from "react";
@@ -34,9 +33,13 @@ export function StreamList({ streams }: { streams: Stream[] }) {
             </button>
             <div className="aspect-video w-full overflow-hidden rounded-md">
               {/* =================================================================== */}
-              {/* THE FIX IS HERE: We use the stream URL directly. NO PROXY! */}
+              {/* THE FIX IS HERE: We feed the player our PROXY URL. */}
               {/* =================================================================== */}
-              <DynamicVideoPlayer src={selectedStream.url} />
+              <DynamicVideoPlayer
+                src={`/api/streams?url=${encodeURIComponent(
+                  selectedStream.url
+                )}`}
+              />
             </div>
           </div>
         </div>
