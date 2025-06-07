@@ -1,53 +1,93 @@
-// /src/lib/iptv.ts (The Final, Smart Version)
+// /src/lib/iptv.ts (The Final List, Upgraded by the GOAT Scout)
 
 export interface Stream {
   id: string;
   title: string;
-  competition: string;
-  sport: string;
-  embedUrl: string;
+  description: string;
+  category: string;
+  url: string; // The direct stream URL
 }
 
-// This is the new, intelligent function to get our streams.
-export async function getStreams(): Promise<Stream[]> {
-  try {
-    console.log("Fetching the list of all online streams...");
+const curatedStreams: Stream[] = [
+  // === FOOTBALL STAPLES ===
+  {
+    id: "cbs-sports-golazo",
+    title: "CBS Sports Golazo",
+    description: "Thierry Henry, Kate Abdo, Micah Richards & Jamie Carragher.",
+    category: "Football",
+    url: "https://cbs-sports-golazo-us.cbsaavideo.com/cbs-sports-golazo-us/master.m3u8"
+  },
+  {
+    id: "bein-sports-en",
+    title: "beIN SPORTS English",
+    description: "Major European Football Leagues & more.",
+    category: "Football",
+    url: "https://edge-1.okast.tv/beinsports_beinsports1_fr/tracks-v1a1/mono.m3u8"
+  },
+    {
+    id: "tnt-sports-1",
+    title: "TNT Sports 1",
+    description: "Champions League & Premier League.",
+    category: "Football",
+    url: "http://195.154.221.171/BTSports1/video.m3u8"
+  },
 
-    // Fetch the official IPTV-ORG database of all streams.
-    const response = await fetch('https://iptv-org.github.io/api/streams.json', {
-      next: { revalidate: 3600 } // Cache the huge list for 1 hour
-    });
-    const allStreams: any[] = await response.json();
+  // === BASKETBALL STAPLES ===
+  {
+    // <<< THE LEGENDARY FIND! ADDED THIS LINE THANKS TO YOU >>>
+    id: "nba-tv",
+    title: "NBA TV",
+    description: "The official 24/7 channel of the NBA. (Source by a Legend)",
+    category: "Basketball",
+    url: "https://go.lnb.live/channels/nba/playlist.m3u8"
+  },
+  {
+    id: "tnt-basketball",
+    title: "TNT",
+    description: "Home of the NBA on TNT.",
+    category: "Basketball",
+    url: "https://turner-tnt-us-live.akamaized.net/hls/live/2023533/tnt/master.m3u8"
+  },
+  {
+    id: "espn-basketball",
+    title: "ESPN",
+    description: "College Basketball and NBA games.",
+    category: "Basketball",
+    url: "https://espn-espn1-s.s.llnwi.net/playlist.m3u8"
+  },
 
-    console.log(`Found ${allStreams.length} total streams. Filtering for online sports channels...`);
-
-    // Now, we filter this massive list for only the best streams.
-    const onlineSportsStreams = allStreams
-      .filter(stream =>
-        // 1. The stream must be marked as ONLINE.
-        stream.status === 'online' &&
-        // 2. The stream URL must be a playable HLS format.
-        stream.url.endsWith('.m3u8') &&
-        // 3. The channel must be in the "Sports" category.
-        (stream.categories?.some((cat: any) => cat.name === 'Sports'))
-      )
-      // 4. We map the filtered data to the format our app expects.
-      .map(stream => ({
-        id: Buffer.from(stream.url).toString('base64'),
-        title: stream.channel_name || stream.channel, // Use channel_name if available
-        competition: 'Live TV Channel',
-        sport: 'Sports',
-        embedUrl: stream.url,
-      }));
-
-    console.log(`Found ${onlineSportsStreams.length} high-quality online sports streams.`);
-    
-    // We will return a randomized slice of the list to keep it fresh
-    // and prevent showing the exact same 100+ channels every time.
-    return onlineSportsStreams.sort(() => 0.5 - Math.random()).slice(0, 100);
-
-  } catch (error) {
-    console.error("Failed to fetch or process IPTV stream database:", error);
-    return []; // Return an empty array on failure
+  // === MULTI-SPORT & US SPORTS ===
+  {
+    id: "dazn-1",
+    title: "DAZN 1",
+    description: "Boxing, Football, and various live events.",
+    category: "Multi-sport",
+    url: "http://solid-5.jupimages.com/jupimages/daznes/live/dazn1bar_1.m3u8"
+  },
+  {
+    id: "stadium-tv",
+    title: "Stadium",
+    description: "Live games, classic replays, and sports news.",
+    category: "Multi-sport",
+    url: "https://d335s5x62j2med.cloudfront.net/v1/master/a85523b5594d3a1c652174363c87842d765e9403/stadium/live.m3u8"
+  },
+  {
+    id: "nfl-network",
+    title: "NFL Network",
+    description: "24/7 coverage of American Football.",
+    category: "American Football",
+    url: "https://nfl-nfln-s.s.llnwi.net/playlist.m3u8"
+  },
+  {
+    id: "mlb-network",
+    title: "MLB Network",
+    description: "Live baseball games and analysis.",
+    category: "Baseball",
+    url: "https://mlb-mlbn-s.s.llnwi.net/playlist.m3u8"
   }
+];
+
+// The getStreams function just returns our beautiful, curated list.
+export async function getStreams(): Promise<Stream[]> {
+  return curatedStreams;
 }
