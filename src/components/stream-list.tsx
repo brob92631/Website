@@ -6,9 +6,16 @@ import { StreamCard } from "./stream-card";
 import { X } from "lucide-react";
 import dynamic from "next/dynamic";
 
+// ===================================================================
+// THE FIX IS HERE: We are dynamically importing our NEW VideoPlayer,
+// not the old one. This fixes the build error.
+// ===================================================================
 const DynamicVideoPlayer = dynamic(
   () => import("./video-player").then((mod) => mod.VideoPlayer),
-  { ssr: false }
+  {
+    ssr: false, // Never render this on the server
+    loading: () => <div className="aspect-video w-full bg-black flex items-center justify-center"><p>Loading Player...</p></div>
+  }
 );
 
 export function StreamList({ streams }: { streams: Stream[] }) {
@@ -31,10 +38,7 @@ export function StreamList({ streams }: { streams: Stream[] }) {
             >
               <X className="h-8 w-8" />
             </button>
-            <div className="aspect-video w-full overflow-hidden rounded-md">
-              {/* =================================================================== */}
-              {/* THE FIX IS HERE: We feed the player our PROXY URL. */}
-              {/* =================================================================== */}
+            <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
               <DynamicVideoPlayer
                 src={`/api/streams?url=${encodeURIComponent(
                   selectedStream.url
