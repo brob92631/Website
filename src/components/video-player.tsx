@@ -99,7 +99,7 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
       });
 
       // Additional event listeners for better debugging
-      hls.on(Hls.Events.FRAG_PARSING_DATA, () => {
+      hls.on(Hls.Events.FRAG_PARSING_USERDATA, () => {
         setIsLoading(false);
       });
 
