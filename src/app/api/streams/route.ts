@@ -60,19 +60,18 @@ export async function GET(request: NextRequest) {
     let effectiveTargetUrl = originalTargetUrl;
     let isExtractedManifest = false; // Flag to indicate if the URL was derived via play-dl
 
-    if (play.yt_validate(originalTargetUrl) === 'video' || play.yt_validate(originalTargetUrl) === 'live') {
-      console.log(`[Proxy YT] Detected YouTube URL: ${originalTargetUrl}. Attempting stream info extraction...`);
+    // --- MODIFIED SECTION START ---
+    const ytValidationResult = play.yt_validate(originalTargetUrl);
+    if (ytValidationResult === 'video' || ytValidationResult === 'playlist') { // 'live' might be implicitly handled by video_info for 'video' type or not distinguished by validate
+    // --- MODIFIED SECTION END ---
+      console.log(`[Proxy YT] Detected YouTube URL type "${ytValidationResult}": ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        // Forcing 'hls' might be needed if play-dl defaults to DASH
-        // play-dl can be configured with cookies for age-restricted or private content if needed,
-        // but that's an advanced setup.
-        // Setting source for potential geo-bypass, this is experimental with play-dl
         const streamInfo = await play.video_info(originalTargetUrl, { 
             requestOptions: { headers: fetchHeaders },
             source : customXForwardedFor ? { 'x-forwarded-for': customXForwardedFor } : undefined
         });
 
-        const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo); // streamInfo.streamingData for newer play-dl versions
+        const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo);
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
           isExtractedManifest = true;
@@ -86,12 +85,11 @@ export async function GET(request: NextRequest) {
     } else if (play.dm_validate(originalTargetUrl)) {
       console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        // DailyMotion support in play-dl is less extensive than YouTube
         const streamInfo = await play.video_info(originalTargetUrl, { 
             requestOptions: { headers: fetchHeaders },
             source : customXForwardedFor ? { 'x-forwarded-for': customXForwardedFor } : undefined
         });
-        const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo); // Adjust based on actual play-dl output for DM
+        const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo); 
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
           isExtractedManifest = true;
