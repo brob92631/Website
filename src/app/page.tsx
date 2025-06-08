@@ -12,6 +12,7 @@ import {
   getOtherEuropeanStreams,
   getUsaUkGeneralStreams,
   getCaucasianStreams,
+  getKurdishStreams, // Added Kurdish
 } from "@/lib/iptv";
 import { Tv, Radio, Zap } from "lucide-react";
 import { Suspense } from "react";
@@ -34,6 +35,7 @@ async function StreamData() {
       otherEuropean,
       usaUkGeneral,
       caucasian,
+      kurdish, // Added Kurdish
     ] = await Promise.all([
       getFeaturedStreams(),
       getItalianStreams(),
@@ -47,6 +49,7 @@ async function StreamData() {
       getOtherEuropeanStreams(),
       getUsaUkGeneralStreams(),
       getCaucasianStreams(),
+      getKurdishStreams(), // Added Kurdish
     ]);
 
     return (
@@ -63,6 +66,7 @@ async function StreamData() {
         otherEuropeanStreams={otherEuropean}
         usaUkGeneralStreams={usaUkGeneral}
         caucasianStreams={caucasian}
+        kurdishStreams={kurdish} // Added Kurdish
       />
     );
   } catch (error) {
