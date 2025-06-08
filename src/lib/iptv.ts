@@ -84,9 +84,16 @@ const curatedStreams: Stream[] = [
     description: "Live baseball games and analysis.",
     category: "Baseball",
     url: "https://mlb-mlbn-s.s.llnwi.net/playlist.m3u8"
-  }
-];
-
+  }, 
+  { 
+   id: "tv8-italy", 
+   title: "TV8", 
+   description: "Italian channel", 
+   category: "Other", 
+   url: "https://hlslive-web-gcdn-skycdn-it.akamaized.net/TACT/11223/tv8web/master.m3u8?hdnts=st=1749365202~exp=1749365502~acl=/*~hmac=a956c67e2bfea75fcf3eebad138989468905eb9d6dfef53fb29d6bbbee1af65b" 
+}
+ ], 
+   
 // The getStreams function just returns our beautiful, curated list.
 export async function getStreams(): Promise<Stream[]> {
   return curatedStreams;
