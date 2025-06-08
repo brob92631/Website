@@ -32,11 +32,9 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
 
-  // Get unique categories for filtering
   const streamsToDisplay = activeCategory === 'sports' ? sportsStreams : italianStreams;
   const categories = ['all', ...new Set(streamsToDisplay.map(stream => stream.category.toLowerCase()))];
   
-  // Filter streams based on search and category
   const filteredStreams = streamsToDisplay.filter(stream => {
     const matchesSearch = stream.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          stream.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -45,7 +43,6 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
     return matchesSearch && matchesFilter;
   });
 
-  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -60,7 +57,6 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedStream]);
 
-  // Reset filters when category changes
   useEffect(() => {
     setSearchTerm('');
     setSelectedFilter('all');
@@ -125,15 +121,6 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
         </div>
       </div>
 
-      {/* Results Summary */}
-      {(searchTerm || selectedFilter !== 'all') && (
-        <div className="mb-4 text-sm text-foreground/60">
-          {filteredStreams.length} stream{filteredStreams.length !== 1 ? 's' : ''} found
-          {searchTerm && ` for "${searchTerm}"`}
-          {selectedFilter !== 'all' && ` in ${selectedFilter}`}
-        </div>
-      )}
-
       {/* Stream List */}
       <div className="space-y-3">
         {filteredStreams.length > 0 ? (
@@ -148,23 +135,6 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
           <div className="text-center py-12">
             <div className="text-4xl mb-4">🔍</div>
             <h3 className="text-lg font-semibold mb-2">No streams found</h3>
-            <p className="text-foreground/60">
-              {searchTerm 
-                ? `No streams match "${searchTerm}"`
-                : `No streams available in ${selectedFilter} category`
-              }
-            </p>
-            {(searchTerm || selectedFilter !== 'all') && (
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedFilter('all');
-                }}
-                className="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/80 transition-colors"
-              >
-                Clear filters
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -200,10 +170,7 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
             <div className="w-full h-full bg-black">
               <DynamicVideoPlayer
                 key={selectedStream.id}
-                src={
-                  `/api/streams?url=${encodeURIComponent(selectedStream.url)}` +
-                  (selectedStream.referer ? `&referer=${encodeURIComponent(selectedStream.referer)}` : '')
-                }
+                src={`/api/streams?url=${encodeURIComponent(selectedStream.url)}`}
               />
             </div>
           </div>
