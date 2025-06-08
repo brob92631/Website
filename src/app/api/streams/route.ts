@@ -3,70 +3,63 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
+  // --- THIS IS THE FIX: Create the permission slip (headers) at the very beginning ---
+  const responseHeaders = new Headers({
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
+  });
+
   try {
     const { searchParams } = new URL(request.url);
     const targetUrl = searchParams.get('url');
-    const targetReferer = searchParams.get('referer'); // The "disguise" from iptv.ts
+    const targetReferer = searchParams.get('referer');
 
     if (!targetUrl) {
-      return new NextResponse('Missing URL parameter', { status: 400 });
+      return new NextResponse('Missing URL parameter', { status: 400, headers: responseHeaders });
     }
 
     console.log(`[Proxy] Request received for: ${targetUrl}`);
 
-    // --- The Core Logic: This logic is now correct based on the logs ---
+    // --- Core Logic ---
     let finalResponse: Response;
-
-    // 1. Prepare the complete header disguise.
     const fetchHeaders: Record<string, string> = {
-      'Accept': '*/*',
-      'Accept-Language': 'en-US,en;q=0.9',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     };
 
-    // Only add the Referer disguise if the stream needs it. This protects LA7 and NBA TV.
     if (targetReferer) {
       fetchHeaders['Referer'] = targetReferer;
+      // The Origin header is also needed for the complete disguise.
+      fetchHeaders['Origin'] = new URL(targetReferer).origin;
     }
 
-    // 2. Make the initial request.
-    const initialResponse = await fetch(targetUrl, {
-      headers: fetchHeaders,
-      redirect: 'manual', // We always handle redirects manually to see what's happening.
-    });
+    const isGatekeeper = targetUrl.includes('.php');
 
-    // 3. Decide what to do with the response.
-    // Case 1: The server redirected us to the final content.
-    if (initialResponse.status >= 300 && initialResponse.status < 400 && initialResponse.headers.get('location')) {
-        const redirectUrl = initialResponse.headers.get('location')!;
-        console.log(`[Proxy] Initial request was a redirect. Following to: ${redirectUrl}`);
-        
-        // Fetch the final content from the new URL.
-        finalResponse = await fetch(redirectUrl, { headers: fetchHeaders });
-    
-    // Case 2 (THE FIX): The server gave us the content directly (Status 200 OK).
-    } else if (initialResponse.ok) {
-        console.log(`[Proxy] Initial request was successful (200 OK). Treating this response as the final content.`);
-        // The initial response *is* our final response.
-        finalResponse = initialResponse;
+    if (isGatekeeper) {
+      console.log(`[Proxy] Gatekeeper stream detected. Applying disguise.`);
+      const gatekeeperResponse = await fetch(targetUrl, { headers: fetchHeaders });
 
-    // Case 3: The request failed for some other reason.
+      // The gatekeeper should respond with the playlist directly.
+      if (!gatekeeperResponse.ok) {
+        console.error(`[Proxy] Gatekeeper rejected request with status: ${gatekeeperResponse.status}`);
+        return new NextResponse(`Gatekeeper error: ${gatekeeperResponse.statusText}`, { status: gatekeeperResponse.status, headers: responseHeaders });
+      }
+      console.log(`[Proxy] Gatekeeper returned playlist successfully.`);
+      finalResponse = gatekeeperResponse;
+
     } else {
-        console.error(`[Proxy] Initial request failed with unhandled status: ${initialResponse.status}`);
-        return new NextResponse(`Initial request failed: ${initialResponse.statusText}`, { status: initialResponse.status });
+      console.log(`[Proxy] Direct content request.`);
+      finalResponse = await fetch(targetUrl, { headers: fetchHeaders });
     }
 
     // --- Process the Final Response ---
     if (!finalResponse.ok) {
-      console.error(`[Proxy] Upstream error on final fetch: ${finalResponse.status} for ${finalResponse.url}`);
-      return new NextResponse(`Upstream error: ${finalResponse.status}`, { status: finalResponse.status });
+      console.error(`[Proxy] Upstream error: ${finalResponse.status} for ${finalResponse.url}`);
+      return new NextResponse(`Upstream error: ${finalResponse.status}`, { status: finalResponse.status, headers: responseHeaders });
     }
     console.log(`[Proxy] Success from upstream: ${finalResponse.status} ${finalResponse.url}`);
 
-    const responseHeaders = new Headers({
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-    });
+    // Add headers from the source response to our response headers.
     ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(name => {
       if (finalResponse.headers.has(name)) {
         responseHeaders.set(name, finalResponse.headers.get(name)!);
@@ -111,11 +104,13 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error(`[Proxy] CRITICAL ERROR in GET handler:`, error);
-    return new NextResponse('Proxy request failed due to a critical error.', { status: 500 });
+    // Ensure even the final crash error has the permission slip.
+    return new NextResponse('Proxy request failed due to a critical error.', { status: 500, headers: responseHeaders });
   }
 }
 
 export async function OPTIONS(request: NextRequest) {
+  // The preflight request also needs the correct CORS headers.
   return new NextResponse(null, {
     status: 204,
     headers: {
