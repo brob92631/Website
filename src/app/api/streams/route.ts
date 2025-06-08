@@ -1,4 +1,27 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getSportsStreams, getItalianStreams } from '@/lib/iptv';
+
+// --- SECURITY: Create a whitelist of allowed hostnames ---
+// We get the streams from our library and extract the hostnames.
+// The proxy will only be allowed to request URLs from these hosts.
+const initializeAllowedHosts = async () => {
+  const [sports, italian] = await Promise.all([
+    getSportsStreams(),
+    getItalianStreams(),
+  ]);
+  const allStreamUrls = [...sports, ...italian].map(s => s.url);
+  const hosts = new Set<string>();
+  allStreamUrls.forEach(url => {
+    try {
+      hosts.add(new URL(url).hostname);
+    } catch (error) {
+      console.error(`Invalid URL in iptv.ts: ${url}`);
+    }
+  });
+  return hosts;
+};
+const allowedHosts = await initializeAllowedHosts();
+console.log('Proxy initialized. Allowed hosts:', allowedHosts);
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -8,203 +31,115 @@ export async function GET(request: NextRequest) {
     return new Response('URL parameter is missing', { status: 400 });
   }
 
+  // --- SECURITY CHECK ---
+  // Ensure the requested URL's hostname is in our whitelist.
+  try {
+    const requestHost = new URL(targetUrl).hostname;
+    if (!allowedHosts.has(requestHost)) {
+      console.warn(`[403] Forbidden request to non-whitelisted host: ${requestHost}`);
+      return new Response(`Forbidden: Host ${requestHost} is not allowed.`, { status: 403 });
+    }
+  } catch (error) {
+    return new Response('Invalid target URL format', { status: 400 });
+  }
+
   console.log('Proxying request to:', targetUrl);
 
   try {
-    // More comprehensive headers to avoid blocking
     const fetchHeaders: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Accept': '*/*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
       'Sec-Fetch-Dest': 'empty',
       'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Site': 'cross-site'
+      'Sec-Fetch-Site': 'cross-site',
     };
 
-    // Copy range header if present for video segments
     const rangeHeader = request.headers.get('range');
     if (rangeHeader) {
       fetchHeaders['Range'] = rangeHeader;
     }
 
-    const response = await fetch(targetUrl, {
-      headers: fetchHeaders,
-      method: 'GET'
-    });
+    const response = await fetch(targetUrl, { headers: fetchHeaders, method: 'GET' });
 
     if (!response.ok) {
-      console.error(`Fetch failed: ${response.status} - ${response.statusText} for URL: ${targetUrl}`);
-      return new Response(`Failed to fetch: ${response.statusText}`, { 
-        status: response.status,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Range'
-        }
-      });
+      console.error(`Fetch failed: ${response.status} ${response.statusText} for URL: ${targetUrl}`);
+      return new Response(`Failed to fetch from origin: ${response.statusText}`, { status: response.status });
     }
 
-    // Determine if this is a playlist or video segment
-    const contentType = response.headers.get('content-type') || '';
-    const isPlaylist = 
-      contentType.includes('mpegurl') || 
-      contentType.includes('x-mpegURL') || 
-      contentType.includes('vnd.apple.mpegurl') ||
-      targetUrl.includes('.m3u8') ||
-      targetUrl.includes('master') ||
-      targetUrl.includes('playlist');
-
-    // Enhanced CORS headers
+    // --- ENHANCED CORS HEADERS ---
     const responseHeaders = new Headers({
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
-      'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges, Content-Type',
-      'Access-Control-Max-Age': '86400'
+      'Access-Control-Allow-Headers': 'Content-Type, Range',
+      'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
     });
+    
+    // Copy important headers from the original response
+    ['content-type', 'content-length', 'content-range', 'accept-ranges', 'last-modified', 'etag', 'cache-control'].forEach(headerName => {
+      const headerValue = response.headers.get(headerName);
+      if (headerValue) responseHeaders.set(headerName, headerValue);
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const isPlaylist = contentType.includes('mpegurl') || targetUrl.endsWith('.m3u8');
 
     if (isPlaylist) {
       console.log('Processing HLS manifest:', targetUrl);
-      
       const manifestText = await response.text();
       
-      if (!manifestText || manifestText.trim().length === 0) {
-        console.error('Empty manifest received from:', targetUrl);
-        return new Response('Empty or invalid manifest', { 
-          status: 502,
-          headers: responseHeaders
-        });
-      }
+      // --- ROBUST URL REWRITING ---
+      // We use the URL constructor to safely resolve relative paths against the manifest's URL.
+      const rewrittenManifest = manifestText.split('\n').map(line => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine || trimmedLine.startsWith('#')) {
+          return line; // Keep comments and empty lines as they are
+        }
+        try {
+          // Resolve the URL in the line relative to the manifest's own URL
+          const absoluteUrl = new URL(trimmedLine, targetUrl).href;
+          // Return the rewritten URL pointing to our proxy
+          return `/api/streams?url=${encodeURIComponent(absoluteUrl)}`;
+        } catch (error) {
+          console.error(`Error rewriting manifest line: "${trimmedLine}"`, error);
+          return line; // Return original line on error
+        }
+      }).join('\n');
 
-      console.log('Manifest content preview:', manifestText.substring(0, 200));
-
-      // Get base URL for resolving relative paths
-      const baseUrl = new URL(targetUrl);
-      const basePath = baseUrl.pathname.substring(0, baseUrl.pathname.lastIndexOf('/') + 1);
-
-      // Process manifest and rewrite URLs
-      const rewrittenManifest = manifestText
-        .split('\n')
-        .map(line => {
-          const trimmedLine = line.trim();
-          
-          // Skip empty lines and comments
-          if (!trimmedLine || trimmedLine.startsWith('#')) {
-            return line;
-          }
-
-          try {
-            let absoluteUrl: string;
-            
-            if (trimmedLine.startsWith('http://') || trimmedLine.startsWith('https://')) {
-              // Already absolute
-              absoluteUrl = trimmedLine;
-            } else if (trimmedLine.startsWith('/')) {
-              // Root relative
-              absoluteUrl = `${baseUrl.protocol}//${baseUrl.host}${trimmedLine}`;
-            } else {
-              // Relative to current path
-              absoluteUrl = `${baseUrl.protocol}//${baseUrl.host}${basePath}${trimmedLine}`;
-            }
-
-            const proxyUrl = `/api/streams?url=${encodeURIComponent(absoluteUrl)}`;
-            console.log('Rewriting URL:', trimmedLine, '->', proxyUrl);
-            
-            return proxyUrl;
-          } catch (error) {
-            console.error('Error processing manifest line:', trimmedLine, error);
-            return line;
-          }
-        })
-        .join('\n');
-
-      // Set manifest headers
       responseHeaders.set('Content-Type', 'application/vnd.apple.mpegurl');
-      responseHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-      responseHeaders.set('Pragma', 'no-cache');
-      responseHeaders.set('Expires', '0');
-
-      console.log('Returning rewritten manifest, length:', rewrittenManifest.length);
       
       return new Response(rewrittenManifest, {
         status: 200,
-        headers: responseHeaders
+        headers: responseHeaders,
       });
 
     } else {
-      // Handle video segments
+      // It's a video segment, stream it directly
       console.log('Proxying video segment:', targetUrl);
-      
-      // Copy important headers from original response
-      const importantHeaders = [
-        'content-type',
-        'content-length', 
-        'content-range',
-        'accept-ranges',
-        'last-modified',
-        'etag',
-        'cache-control'
-      ];
-
-      importantHeaders.forEach(headerName => {
-        const headerValue = response.headers.get(headerName);
-        if (headerValue) {
-          responseHeaders.set(headerName, headerValue);
-        }
-      });
-
-      // Handle range requests properly
-      if (rangeHeader) {
-        responseHeaders.set('Accept-Ranges', 'bytes');
-      }
-
-      // Stream the response
-      const body = response.body;
-      
-      return new Response(body, {
+      return new Response(response.body, {
         status: response.status,
-        headers: responseHeaders
+        headers: responseHeaders,
       });
     }
 
   } catch (error) {
     console.error('Proxy Error for URL:', targetUrl, error);
-    
     let errorMessage = 'Proxy request failed';
     let statusCode = 500;
-
-    if (error instanceof TypeError) {
-      if (error.message.includes('fetch')) {
-        errorMessage = 'Network error - unable to reach stream source';
-        statusCode = 502;
-      } else if (error.message.includes('AbortError')) {
-        errorMessage = 'Request timeout';
-        statusCode = 504;
-      }
+    if (error instanceof Error && error.message.includes('fetch')) {
+      errorMessage = 'Network error: Unable to reach stream source.';
+      statusCode = 502; // Bad Gateway
     }
-
-    return new Response(errorMessage, {
-      status: statusCode,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Range',
-        'Content-Type': 'text/plain'
-      }
-    });
+    return new Response(errorMessage, { status: statusCode });
   }
 }
 
 export async function OPTIONS() {
-  return new Response(null, {
+  return NextResponse.json(null, {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
-      'Access-Control-Max-Age': '86400'
-    }
+      'Access-Control-Allow-Headers': 'Content-Type, Range',
+    },
   });
 }
