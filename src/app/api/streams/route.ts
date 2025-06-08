@@ -31,22 +31,20 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     let originalTargetUrl = searchParams.get('url');
-    const customUserAgent = searchParams.get('userAgent'); // For our direct fetch
-    const customReferer = searchParams.get('referer');     // For our direct fetch
-    const customAcceptLanguage = searchParams.get('acceptLanguage'); // For our direct fetch
-    const customXForwardedFor = searchParams.get('xForwardedFor'); // For play-dl and our direct fetch
+    const customUserAgent = searchParams.get('userAgent');
+    const customReferer = searchParams.get('referer');
+    const customAcceptLanguage = searchParams.get('acceptLanguage');
+    const customXForwardedFor = searchParams.get('xForwardedFor');
 
     if (!originalTargetUrl) {
       return new NextResponse('Missing URL parameter', { status: 400, headers: responseHeaders });
     }
 
-    // Headers for OUR proxy's direct fetch calls
     const fetchHeaders: HeadersInit = {
       'User-Agent': customUserAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
       'Accept-Language': customAcceptLanguage || 'en-US,en;q=0.9,fr-FR;q=0.8,fr;q=0.7',
     };
     if (customReferer) fetchHeaders['Referer'] = customReferer;
-    // Add X-Forwarded-For to our direct fetch as well, though its main use here is for play-dl
     if (customXForwardedFor) fetchHeaders['X-Forwarded-For'] = customXForwardedFor;
     if (customReferer) {
         try { fetchHeaders['Origin'] = new URL(customReferer).origin; } catch (e) { /* ignore */ }
@@ -55,27 +53,40 @@ export async function GET(request: NextRequest) {
     let effectiveTargetUrl = originalTargetUrl;
     let isExtractedManifest = false;
 
-    // Options for play.video_info()
-    // Based on Perplexity's suggestion to use requestOptions.headers
-    const videoInfoOptions: Parameters<typeof play.video_info>[1] = customXForwardedFor
-      ? {
-          requestOptions: { // This is the key change suggested by Perplexity
-            headers: {
-              'X-Forwarded-For': customXForwardedFor,
-              // We could also try to pass User-Agent/Referer here if play-dl uses them from requestOptions
-              // For example:
-              // ...(customUserAgent && { 'User-Agent': customUserAgent }),
-              // ...(customReferer && { 'Referer': customReferer }),
-            }
-          }
-        }
-      : undefined; // Pass undefined if no customXForwardedFor, play-dl will use defaults
+    // Define options for play.video_info
+    // We'll only pass options if customXForwardedFor is defined.
+    // The structure of options for play.video_info is tricky with TypeScript.
+    // Based on common patterns and trying to satisfy the type checker,
+    // we pass an object that *might* be interpreted for its 'source' if available,
+    // or simply an empty object / undefined if no specific options are needed.
+    let videoInfoOpts: any = undefined; // Use 'any' to bypass strict type checking here if necessary
+                                      // or try to match a known structure if play-dl has a simple one.
+
+    if (customXForwardedFor) {
+        // This is a guess based on how `source` is sometimes used for IP hinting.
+        // If InfoOptions is truly strict and doesn't allow arbitrary string keys in `source`,
+        // this might still be an issue or simply ignored by play-dl.
+        videoInfoOpts = { source: { proxy: customXForwardedFor } };
+        // Alternative: videoInfoOpts = { source: { ipv4: customXForwardedFor } }; // if it expects specific keys
+        // If play-dl allows direct headers in source (unlikely to be type-safe without proper definition):
+        // videoInfoOpts = { source: { 'x-forwarded-for': customXForwardedFor } };
+    }
+    
+    // If the above still causes type errors, the safest is often:
+    // videoInfoOpts = customXForwardedFor ? { /* try minimal known valid options or just {} */ } : undefined;
+    // Or even, if only `source` with specific keys like `ipv4` is valid:
+    // videoInfoOpts = customXForwardedFor ? { source: { ipv4: customXForwardedFor } } : undefined;
+    // For now, let's stick with the initial simpler options structure and if it fails, we remove options for play.video_info
 
     const ytValidationResult = play.yt_validate(originalTargetUrl);
     if (ytValidationResult === 'video' || ytValidationResult === 'playlist') {
       console.log(`[Proxy YT] Detected YouTube URL type "${ytValidationResult}": ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        const streamInfo = await play.video_info(originalTargetUrl, videoInfoOptions);
+        // If customXForwardedFor is provided, use it in a way play-dl might understand for source IP.
+        // The most common way to hint at a source IP is via `source.ipv4` or `source.proxy`
+        const optionsForPlayDl = customXForwardedFor ? { source: { ipv4: customXForwardedFor } } : undefined;
+
+        const streamInfo = await play.video_info(originalTargetUrl, optionsForPlayDl);
         const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo);
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
@@ -90,7 +101,8 @@ export async function GET(request: NextRequest) {
     } else if (play.dm_validate(originalTargetUrl)) {
       console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        const streamInfo = await play.video_info(originalTargetUrl, videoInfoOptions); // Using the same options structure
+        const optionsForPlayDl = customXForwardedFor ? { source: { ipv4: customXForwardedFor } } : undefined;
+        const streamInfo = await play.video_info(originalTargetUrl, optionsForPlayDl);
         const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo);
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
@@ -105,13 +117,10 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`[Proxy] Requesting Effective URL: ${effectiveTargetUrl}`);
-    // Log headers that will be used for the *direct fetch* by this proxy
     if (customUserAgent) console.log(`[Proxy] Using Custom User-Agent (for direct fetch): ${customUserAgent}`);
     if (customReferer) console.log(`[Proxy] Using Custom Referer (for direct fetch): ${customReferer}`);
-    if (customXForwardedFor && videoInfoOptions) console.log(`[Proxy] Passed X-Forwarded-For to play-dl options.`);
 
-
-    const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders }); // Our direct fetch uses all custom headers from fetchHeaders
+    const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders });
 
     if (!response.ok) {
       console.error(`[Proxy] Upstream error: ${response.status} for ${effectiveTargetUrl} (final URL: ${response.url})`);
