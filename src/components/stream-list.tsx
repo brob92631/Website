@@ -3,28 +3,53 @@
 import { useState } from "react";
 import type { Stream } from "@/lib/iptv";
 import { StreamCard } from "./stream-card";
-import { X } from "lucide-react";
+import { X, Gamepad2 } from "lucide-react";
 import dynamic from "next/dynamic";
 
-// ===================================================================
-// THE FIX IS HERE: We are dynamically importing our NEW VideoPlayer,
-// not the old one. This fixes the build error.
-// ===================================================================
 const DynamicVideoPlayer = dynamic(
   () => import("./video-player").then((mod) => mod.VideoPlayer),
   {
-    ssr: false, // Never render this on the server
+    ssr: false,
     loading: () => <div className="aspect-video w-full bg-black flex items-center justify-center"><p>Loading Player...</p></div>
   }
 );
 
-export function StreamList({ streams }: { streams: Stream[] }) {
+interface StreamListProps {
+  sportsStreams: Stream[];
+  italianStreams: Stream[];
+}
+
+export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
   const [selectedStream, setSelectedStream] = useState<Stream | null>(null);
+  const [activeCategory, setActiveCategory] = useState<'sports' | 'italian'>('sports');
+
+  const streamsToDisplay = activeCategory === 'sports' ? sportsStreams : italianStreams;
 
   return (
     <>
+      {/* Category Switcher UI */}
+      <div className="mb-6 flex justify-center gap-2">
+        <button
+          onClick={() => setActiveCategory('sports')}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+            activeCategory === 'sports' ? 'bg-primary text-white' : 'bg-card hover:bg-card-hover'
+          }`}
+        >
+          <Gamepad2 className="h-4 w-4" />
+          Sports
+        </button>
+        <button
+          onClick={() => setActiveCategory('italian')}
+          className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+            activeCategory === 'italian' ? 'bg-primary text-white' : 'bg-card hover:bg-card-hover'
+          }`}
+        >
+          🇮🇹 Italian
+        </button>
+      </div>
+
       <div className="space-y-3">
-        {streams.map((stream) => (
+        {streamsToDisplay.map((stream) => (
           <StreamCard key={stream.id} stream={stream} onClick={() => setSelectedStream(stream)} />
         ))}
       </div>
@@ -40,9 +65,7 @@ export function StreamList({ streams }: { streams: Stream[] }) {
             </button>
             <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
               <DynamicVideoPlayer
-                src={`/api/streams?url=${encodeURIComponent(
-                  selectedStream.url
-                )}`}
+                src={`/api/streams?url=${encodeURIComponent(selectedStream.url)}`}
               />
             </div>
           </div>
