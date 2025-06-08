@@ -34,6 +34,7 @@ interface StreamListProps {
   otherEuropeanStreams: Stream[];
   usaUkGeneralStreams: Stream[];
   caucasianStreams: Stream[];
+  kurdishStreams: Stream[]; // Added Kurdish
 }
 
 type CategoryKey = 
@@ -48,7 +49,8 @@ type CategoryKey =
   | 'german'
   | 'otherEuropean'
   | 'usaUkGeneral'
-  | 'caucasian';
+  | 'caucasian'
+  | 'kurdish'; // Added Kurdish
 
 interface CategoryUIData {
   name: string;
@@ -70,6 +72,7 @@ export function StreamList({
   otherEuropeanStreams,
   usaUkGeneralStreams,
   caucasianStreams,
+  kurdishStreams, // Added Kurdish
 }: StreamListProps) {
   const [selectedStream, setSelectedStream] = useState<Stream | null>(null);
   const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey>('featured');
@@ -88,6 +91,7 @@ export function StreamList({
     { name: "Greek", emoji: "🇬🇷", key: 'greek', streams: greekStreams },
     { name: "German", emoji: "🇩🇪", key: 'german', streams: germanStreams },
     { name: "Caucasian", emoji: "🇬🇪", key: 'caucasian', streams: caucasianStreams },
+    { name: "Kurdish", emoji: "☀️", key: 'kurdish', streams: kurdishStreams }, // Added Kurdish
     { name: "Europe Mix", emoji: "🇪🇺", key: 'otherEuropean', streams: otherEuropeanStreams },
   ];
 
@@ -154,9 +158,7 @@ export function StreamList({
           <input
             id="search-input"
             type="text"
-            // --- THIS LINE IS FIXED ---
             placeholder={`Search ${streamsToDisplay.length} streams in ${currentCategory.name}... (Press '/' to focus)`}
-            // --- END OF FIX ---
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 bg-card border border-card-hover rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-200"
