@@ -13,8 +13,7 @@
     "react-dom": "^18",
     "next": "14.2.3",
     "hls.js": "^1.5.8",
-    "lucide-react": "^0.395.0",
-    "react-player": "^2.16.0"
+    "lucide-react": "^0.395.0"
   },
   "devDependencies": {
     "typescript": "^5",
