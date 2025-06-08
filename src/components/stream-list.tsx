@@ -23,7 +23,6 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
   const [selectedStream, setSelectedStream] = useState<Stream | null>(null);
   const [activeCategory, setActiveCategory] = useState<'sports' | 'italian'>('sports');
 
-  // --- UX: Handle Escape key to close modal ---
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -61,7 +60,8 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
       </div>
 
       <div className="space-y-3">
-        {streamsToДисплей.map((stream) => (
+        {/* --- TYPO FIX: Corrected variable name --- */}
+        {streamsToDisplay.map((stream) => (
           <StreamCard key={stream.id} stream={stream} onClick={() => setSelectedStream(stream)} />
         ))}
       </div>
@@ -69,12 +69,10 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
       {selectedStream && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          // --- UX: Handle click on backdrop to close modal ---
           onClick={() => setSelectedStream(null)}
         >
           <div 
             className="relative w-full max-w-4xl rounded-lg bg-background p-2 shadow-2xl"
-            // Stop propagation so clicking the player doesn't close the modal
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -86,7 +84,7 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
             </button>
             <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
               <DynamicVideoPlayer
-                key={selectedStream.id} // Use key to force re-mount on stream change
+                key={selectedStream.id}
                 src={`/api/streams?url=${encodeURIComponent(selectedStream.url)}`}
               />
             </div>
