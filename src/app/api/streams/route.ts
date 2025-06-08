@@ -85,7 +85,8 @@ export async function GET(request: NextRequest) {
       console.log(`  ...using Referer: ${targetReferer}`);
     }
 
-    // Dynamic headers based on whether a referer is provided
+    // --- START OF FIX ---
+    // Dynamic headers with a restored fallback for streams that don't need a specific referer.
     const fetchHeaders: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
       'Accept': '*/*',
@@ -96,10 +97,17 @@ export async function GET(request: NextRequest) {
     };
 
     if (targetReferer) {
-      // If a specific referer is needed for this stream, use it
+      // If a specific referer is needed for this stream, use it.
       fetchHeaders['Referer'] = targetReferer;
       fetchHeaders['Origin'] = new URL(targetReferer).origin;
+    } else {
+      // --- FIX: RESTORED THE FALLBACK LOGIC ---
+      // For streams that don't have a specific referer (like LA7, NBA TV),
+      // we still need to send a generic one just in case.
+      fetchHeaders['Referer'] = 'https://gopst.link/';
+      fetchHeaders['Origin'] = 'https://gopst.link';
     }
+    // --- END OF FIX ---
 
     // Forward range requests for video streaming
     const rangeHeader = request.headers.get('range');
@@ -109,7 +117,7 @@ export async function GET(request: NextRequest) {
 
     // Make the request with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     let response: Response;
     try {
@@ -117,7 +125,6 @@ export async function GET(request: NextRequest) {
         headers: fetchHeaders, 
         method: 'GET',
         signal: controller.signal,
-        // Don't follow redirects automatically for security
         redirect: 'manual'
       });
       clearTimeout(timeoutId);
@@ -130,7 +137,6 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    // Handle redirects manually for security
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');
       if (location) {
@@ -149,7 +155,6 @@ export async function GET(request: NextRequest) {
 
     if (!response.ok) {
       console.error(`❌ Upstream error: ${response.status} ${response.statusText} for ${targetUrl}`);
-      // This part is important: it might be a 403 Forbidden because of a new token being needed.
       const responseBody = await response.text();
       console.error(`  ...Response body: ${responseBody.slice(0, 200)}`);
       return new NextResponse(`Upstream error: ${response.statusText}`, { 
@@ -157,17 +162,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Enhanced response headers
     const responseHeaders = new Headers({
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
       'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
-      'Cache-Control': 'public, max-age=300', // 5 minute cache
+      'Cache-Control': 'public, max-age=300',
       'X-Proxy-Cache': 'MISS',
     });
     
-    // Forward important headers
     const headersToForward = [
       'content-type', 'content-length', 'content-range', 'accept-ranges', 
       'last-modified', 'etag', 'expires', 'cache-control'
@@ -190,32 +193,25 @@ export async function GET(request: NextRequest) {
       try {
         const manifestText = await response.text();
         
-        // --- START: CORRECTED MANIFEST REWRITING LOGIC ---
         const rewrittenManifest = manifestText
           .split('\n')
           .map(line => {
             const trimmedLine = line.trim();
 
-            // Handle lines containing a URI attribute (e.g., #EXT-X-KEY, #EXT-X-MAP)
             if (trimmedLine.startsWith('#') && trimmedLine.includes('URI="')) {
               try {
-                // Extract the original URI
                 const uriMatch = trimmedLine.match(/URI="([^"]+)"/);
-                if (!uriMatch || !uriMatch[1]) return line; // No URI found, return original line
+                if (!uriMatch || !uriMatch[1]) return line;
                 
                 const originalUri = uriMatch[1];
-                
-                // Create an absolute URL for the URI
                 const absoluteUrl = new URL(originalUri, targetUrl).href;
-
-                // Validate the host before rewriting
                 const uriHost = new URL(absoluteUrl).hostname;
+
                 if (!allowedHosts.has(uriHost)) {
                     console.warn(`🚫 Skipping non-whitelisted URI in manifest: ${uriHost}`);
                     return `# Blocked: ${line}`;
                 }
 
-                // Rewrite the line with the proxied URI, CARRYING OVER THE REFERER
                 const proxiedUri = `/api/streams?url=${encodeURIComponent(absoluteUrl)}` + 
                                    (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
                 return trimmedLine.replace(originalUri, proxiedUri);
@@ -226,23 +222,19 @@ export async function GET(request: NextRequest) {
               }
             }
             
-            // Handle segment URLs (lines that don't start with #)
             if (!trimmedLine || trimmedLine.startsWith('#')) {
               return line;
             }
             
             try {
-              // Handle relative and absolute URLs
               const absoluteUrl = new URL(trimmedLine, targetUrl).href;
-              
-              // Validate the rewritten URL host
               const rewrittenHost = new URL(absoluteUrl).hostname;
+
               if (!allowedHosts.has(rewrittenHost)) {
                 console.warn(`🚫 Skipping non-whitelisted URL in manifest: ${rewrittenHost}`);
                 return `# Blocked: ${line}`;
               }
               
-              // CARRY OVER THE REFERER for subsequent segment requests
               return `/api/streams?url=${encodeURIComponent(absoluteUrl)}` + 
                      (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
             } catch (error) {
@@ -251,7 +243,6 @@ export async function GET(request: NextRequest) {
             }
           })
           .join('\n');
-        // --- END: CORRECTED MANIFEST REWRITING LOGIC ---
 
         responseHeaders.set('Content-Type', 'application/vnd.apple.mpegurl');
         responseHeaders.set('Content-Length', Buffer.byteLength(rewrittenManifest, 'utf8').toString());
@@ -269,7 +260,6 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Failed to process manifest', { status: 500 });
       }
     } else {
-      // Stream binary content (video segments)
       const processingTime = Date.now() - startTime;
       console.log(`✅ Binary content proxied in ${processingTime}ms for ${requestHost}`);
       
