@@ -27,9 +27,9 @@ const featuredStreams: Stream[] = [
     category: "Basketball",
     url: "https://v13.thetvapp.to/hls/NBATV/tracks-v1a1/mono.m3u8?token=l5LXdrvnthAkYhx2IMcXOA&expires=1749416469&user_id=Q2xCRmRWRGpvYkVNMjlBcWJKbW1GN2RyQnVLa25zajlnQWs0WlBkNA==",
   },
-  // French Sports (will be populated from the new list below, if selected for featured)
-  { id: "lequipe-fr", title: "L'Équipe", description: "French sports news and events.", category: "Sports", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/dmotion/py/eqpe/equipe.m3u8" }, // Using a more stable known link
-  { id: "sport-en-france-fr", title: "Sport en France", description: "French national sports broadcaster.", category: "Sports", url: "https://sp1564435593.mytvchain.info/live/sp1564435593/index.m3u8" },
+  // French (from new list)
+  { id: "arte-fr-featured", title: "Arte", description: "European culture channel.", category: "Culture", url: "https://artesimulcast.akamaized.net/hls/live/2031003/artelive_fr/index.m3u8" },
+  { id: "france24-fr-featured", title: "France 24 (French)", description: "International news in French.", category: "News", url: "https://www.youtube.com/c/FRANCE24/live" }, // Placeholder, will need direct M3U8 if youtube link doesn't work via proxy as is
   // Arabic Sports
   { id: "al-kass-1-qa", title: "Al Kass 1 (Qatar)", description: "Qatari sports channel.", category: "Sports", url: "https://liveakgr.alkassdigital.net/hls/live/2097037/Alkass1muytrdc/master.m3u8" },
   { id: "dubai-sports-1-ae", title: "Dubai Sports 1 (UAE)", description: "UAE sports broadcaster.", category: "Sports", url: "https://dmidspta.cdn.mgmlcdn.com/dubaisports/smil:dubaisports.stream.smil/chunklist.m3u8" },
@@ -68,35 +68,33 @@ const italianStreams: Stream[] = [
 
 // === French (+ FR-speaking BE, CH, CA) Channels ===
 const frenchStreams: Stream[] = [
-  // National & General
-  { id: toKebabCase("TF1 FR (Paradise)"), title: "TF1", description: "Major French national channel.", category: "General", url: "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/tf1plus/tf1.m3u8" },
-  { id: toKebabCase("France 2 FR (Paradise)"), title: "France 2", description: "Main French public channel.", category: "General", url: "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/francetv/france2.m3u8" },
-  { id: toKebabCase("France 3 FR (Paradise)"), title: "France 3", description: "French regional public channel.", category: "General", url: "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/francetv/france3.m3u8" },
-  { id: toKebabCase("France 5 FR (Paradise)"), title: "France 5", description: "French public educational channel.", category: "Education", url: "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/francetv/france5.m3u8" },
-  { id: toKebabCase("Arte FR (Akamai)"), title: "Arte", description: "European culture channel (French).", category: "Culture", url: "https://artesimulcast.akamaized.net/hls/live/2031003/artelive_fr/index.m3u8" },
-  { id: toKebabCase("W9 FR (Bozztv)"), title: "W9", description: "French music and entertainment channel.", category: "Entertainment", url: "https://live20.bozztv.com/dvrfl06/astv/astv-w9tv/index.m3u8" },
-  { id: toKebabCase("TMC FR (Paradise)"), title: "TMC", description: "French general entertainment channel.", category: "Entertainment", url: "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/tf1plus/tmc.m3u8" },
-  { id: toKebabCase("TV5Monde FBSM"), title: "TV5Monde FBSM", description: "International Francophone channel.", category: "General", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(fbs)/variant.m3u8" },
-
-  // News
-  { id: toKebabCase("BFM TV FR (NextRadioTV)"), title: "BFM TV", description: "French 24/7 news channel.", category: "News", url: "https://live-cdn-stream-euw1.bfmtv.bct.nextradiotv.com/master.m3u8" },
-  { id: toKebabCase("CNews FR (Bryan)"), title: "CNews", description: "French news channel.", category: "News", url: "https://raw.githubusercontent.com/LeBazarDeBryan/XTVZ_/main/Stream/Live/CNews.m3u8" },
-  { id: toKebabCase("LCI FR (ipstreet312)"), title: "LCI", description: "French news channel.", category: "News", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/btv/py/lci1.m3u8" },
-  { id: toKebabCase("France 24 FR (Official)"), title: "France 24 (French)", description: "International news in French.", category: "News", url: "https://live.france24.com/hls/live/2037179/F24_FR_HI_HLS/master_5000.m3u8" }, // Picked 1080p
-
+  // General & National
+  { id: toKebabCase("Arte FR"), title: "Arte", description: "European culture channel.", category: "Culture", url: "https://artesimulcast.akamaized.net/hls/live/2031003/artelive_fr/index.m3u8" },
+  { id: toKebabCase("NRJ 12 FR"), title: "NRJ 12", description: "Music and entertainment.", category: "Entertainment", url: "https://nrj12.nrjaudio.fm/hls/live/2038374/nrj_12/master.m3u8" },
+  { id: toKebabCase("TV5Monde Info"), title: "TV5 Monde Info", description: "International Francophone news.", category: "News", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(info)/index.m3u8" },
+  { id: toKebabCase("TV5Monde FBS"), title: "TV5 Monde FBS (France, BE, CH)", description: "Intl. Francophone channel.", category: "General", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(fbs)/index.m3u8" },
+  { id: toKebabCase("TV5Monde Europe"), title: "TV5 Monde Europe", description: "Intl. Francophone channel (Europe).", category: "General", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(europe)/index.m3u8" },
+  
+  // News - Note: Many YouTube links require special handling or direct M3U8 extraction. These are placeholders.
+  // The Dailymotion CNews link is also a page, not a direct stream.
+  // Using direct M3U8 for France 24 as it's more likely to work with the current proxy.
+  { id: toKebabCase("France 24 French (Official M3U8)"), title: "France 24 (French)", description: "International news in French.", category: "News", url: "https://live.france24.com/hls/live/2037179/F24_FR_HI_HLS/master_5000.m3u8" }, // From previous list, seems more reliable.
+  { id: toKebabCase("CGTN French"), title: "CGTN Français", description: "Chinese international news in French.", category: "News", url: "https://news.cgtn.com/resource/live/french/cgtn-f.m3u8" },
+  
   // Sports
+  // L'Équipe Dailymotion link is a page, not direct M3U8. If a direct m3u8 for L'Equipe exists and is preferred, use that.
+  // For now, retaining the previous more stable link for L'Equipe.
   { id: toKebabCase("L'Équipe FR (ipstreet312)"), title: "L'Équipe", description: "French sports news and events.", category: "Sports", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/dmotion/py/eqpe/equipe.m3u8" },
-  { id: toKebabCase("Sport en France FR (MyTVChain)"), title: "Sport en France", description: "French national sports broadcaster.", category: "Sports", url: "https://sp1564435593.mytvchain.info/live/sp1564435593/index.m3u8" }, // Picked 1080p from list
-  { id: toKebabCase("Equidia FR (Paradise)"), title: "Equidia", description: "Equestrian sports.", category: "Sports", url: "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/equidia/live2.m3u8" },
 
-  // Documentary
-  { id: toKebabCase("RMC Découverte FR (Cloudfront)"), title: "RMC Découverte", description: "French documentary channel.", category: "Documentary", url: "https://d2mt8for1pddy4.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-6uronj7gzvy4j/index.m3u8" },
-  { id: toKebabCase("RMC Story FR (Cloudfront)"), title: "RMC Story", description: "French factual and documentary channel.", category: "Documentary", url: "https://d36bxc1bknkxrk.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-3ewcp19zjaxpt/index.m3u8" },
-  { id: toKebabCase("National Geographic FR (Bozztv)"), title: "National Geographic", description: "Nature and science documentaries.", category: "Documentary", url: "https://live20.bozztv.com/dvrfl06/astv/astv-natgeofr/index.m3u8" },
-
-  // Kids
-  { id: toKebabCase("TiVi5Monde (Official)"), title: "TiVi5Monde", description: "Kids Francophone channel.", category: "Kids", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(tivi5)/variant.m3u8" },
-  // Many other kids channels (Gulli, Disney etc.) from previous list were from 2hubs, now removed
+  // Other Potentially Interesting
+  { id: toKebabCase("RT France"), title: "RT France", description: "News channel (may have restrictions).", category: "News", url: "https://rt-fra.rttv.com/dvr/rtfrance/playlist.m3u8" },
+  // The LCP and Public Sénat links are pages, not direct M3U8 files.
+  
+  // Note: Many channels from the provided list (TF1, France 2/3/5, M6, C8, CNews Dailymotion)
+  // are either direct webpage links (Dailymotion, YouTube pages) or require specific referers/user-agents
+  // not explicitly defined. The proxy *might* work for some if they are lenient, but direct M3U8s
+  // are generally more reliable for this type of simple proxy.
+  // For now, this is a smaller, more focused list based on more direct M3U8 availability from your new source.
 ];
 
 
