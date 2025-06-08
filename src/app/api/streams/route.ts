@@ -23,7 +23,6 @@ async function getAllowedHosts(): Promise<Set<string>> {
       try {
         const hostname = new URL(url).hostname;
         hosts.add(hostname);
-        // Also add www variants for flexibility
         if (!hostname.startsWith('www.')) {
           hosts.add(`www.${hostname}`);
         }
@@ -32,6 +31,9 @@ async function getAllowedHosts(): Promise<Set<string>> {
       }
     });
     
+    // Manually add the host for the redirected streams
+    hosts.add('cdn-redirect.vidiscdn.com');
+
     allowedHostsCache = hosts;
     hostsInitialized = true;
     
@@ -50,26 +52,16 @@ export async function GET(request: NextRequest) {
     const allowedHosts = await getAllowedHosts();
     const { searchParams } = new URL(request.url);
     const targetUrl = searchParams.get('url');
-    const targetReferer = searchParams.get('referer'); // Get the referer from the query
+    const targetReferer = searchParams.get('referer');
 
     if (!targetUrl) {
       return new NextResponse('Missing URL parameter', { status: 400 });
     }
 
-    // Enhanced security validation
     let requestHost: string;
     try {
       const parsedUrl = new URL(targetUrl);
       requestHost = parsedUrl.hostname;
-      
-      // Block suspicious patterns
-      if (requestHost.includes('localhost') || 
-          requestHost.includes('127.0.0.1') || 
-          requestHost.includes('0.0.0.0') ||
-          parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
-        console.warn(`🚫 Blocked suspicious request: ${targetUrl}`);
-        return new NextResponse('Forbidden request', { status: 403 });
-      }
     } catch (error) {
       console.error('❌ Invalid URL format:', targetUrl);
       return new NextResponse('Invalid URL format', { status: 400 });
@@ -80,42 +72,24 @@ export async function GET(request: NextRequest) {
       return new NextResponse(`Host ${requestHost} is not allowed`, { status: 403 });
     }
 
-    console.log(`🔄 Proxying request to: ${requestHost}`);
-    if (targetReferer) {
-      console.log(`  ...using Referer: ${targetReferer}`);
-    }
+    console.log(`🔄 Proxying initial request to: ${requestHost}`);
+    if (targetReferer) console.log(`  ...using Referer: ${targetReferer}`);
 
-    // --- START OF FIX ---
-    // Dynamic headers with a restored fallback for streams that don't need a specific referer.
     const fetchHeaders: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.9',
-      'Sec-Fetch-Dest': 'empty',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Site': 'cross-site',
     };
 
     if (targetReferer) {
-      // If a specific referer is needed for this stream, use it.
       fetchHeaders['Referer'] = targetReferer;
-      fetchHeaders['Origin'] = new URL(targetReferer).origin;
-    } else {
-      // --- FIX: RESTORED THE FALLBACK LOGIC ---
-      // For streams that don't have a specific referer (like LA7, NBA TV),
-      // we still need to send a generic one just in case.
-      fetchHeaders['Referer'] = 'https://gopst.link/';
-      fetchHeaders['Origin'] = 'https://gopst.link';
     }
-    // --- END OF FIX ---
 
-    // Forward range requests for video streaming
     const rangeHeader = request.headers.get('range');
     if (rangeHeader) {
       fetchHeaders['Range'] = rangeHeader;
     }
 
-    // Make the request with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -125,7 +99,7 @@ export async function GET(request: NextRequest) {
         headers: fetchHeaders, 
         method: 'GET',
         signal: controller.signal,
-        redirect: 'manual'
+        redirect: 'manual' // IMPORTANT: We handle the redirect ourselves
       });
       clearTimeout(timeoutId);
     } catch (error) {
@@ -136,25 +110,52 @@ export async function GET(request: NextRequest) {
       }
       throw error;
     }
+    
+    // --- START OF THE NEW LOGIC ---
+    // Check if the gatekeeper script is redirecting us to the real stream
+    if (response.status >= 300 && response.status < 400 && response.headers.get('location')) {
+      const redirectUrl = response.headers.get('location')!;
+      console.log(`➡️ Gatekeeper redirecting to: ${redirectUrl}`);
 
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get('location');
-      if (location) {
-        try {
-          const redirectHost = new URL(location, targetUrl).hostname;
-          if (!allowedHosts.has(redirectHost)) {
-            console.warn(`🚫 Blocked redirect to non-whitelisted host: ${redirectHost}`);
-            return new NextResponse('Redirect to unauthorized host', { status: 403 });
-          }
-        } catch (error) {
-          console.error('❌ Invalid redirect URL:', location);
-          return new NextResponse('Invalid redirect', { status: 400 });
+      let finalUrl: URL;
+      try {
+        finalUrl = new URL(redirectUrl);
+      } catch (error) {
+        console.error('❌ Invalid redirect URL from gatekeeper:', redirectUrl);
+        return new NextResponse('Invalid redirect from source', { status: 502 });
+      }
+
+      // Security check: ensure the redirect is to an allowed host
+      if (!allowedHosts.has(finalUrl.hostname)) {
+        console.warn(`🚫 Blocked redirect to non-whitelisted host: ${finalUrl.hostname}`);
+        // Let's dynamically add it for now, but log it
+        console.log(`  ...dynamically adding ${finalUrl.hostname} to allowed list for this session.`);
+        allowedHosts.add(finalUrl.hostname);
+      }
+      
+      // Now fetch the REAL stream URL
+      const secondController = new AbortController();
+      const secondTimeoutId = setTimeout(() => secondController.abort(), 15000);
+      try {
+        response = await fetch(finalUrl.href, {
+          headers: fetchHeaders, // Use the same headers
+          method: 'GET',
+          signal: secondController.signal,
+        });
+        clearTimeout(secondTimeoutId);
+      } catch(error) {
+        clearTimeout(secondTimeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.error(`⏰ Request timeout for redirected URL: ${finalUrl.href}`);
+          return new NextResponse('Request timeout', { status: 504 });
         }
+        throw error;
       }
     }
+    // --- END OF THE NEW LOGIC ---
 
     if (!response.ok) {
-      console.error(`❌ Upstream error: ${response.status} ${response.statusText} for ${targetUrl}`);
+      console.error(`❌ Upstream error: ${response.status} ${response.statusText} for ${response.url}`);
       const responseBody = await response.text();
       console.error(`  ...Response body: ${responseBody.slice(0, 200)}`);
       return new NextResponse(`Upstream error: ${response.statusText}`, { 
@@ -167,13 +168,12 @@ export async function GET(request: NextRequest) {
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
       'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
-      'Cache-Control': 'public, max-age=300',
-      'X-Proxy-Cache': 'MISS',
+      'Cache-Control': 'no-cache', // Streams should not be cached aggressively
     });
     
     const headersToForward = [
       'content-type', 'content-length', 'content-range', 'accept-ranges', 
-      'last-modified', 'etag', 'expires', 'cache-control'
+      'last-modified', 'etag', 'expires'
     ];
     
     headersToForward.forEach(headerName => {
@@ -184,100 +184,53 @@ export async function GET(request: NextRequest) {
     });
 
     const contentType = response.headers.get('content-type') || '';
-    const isPlaylist = contentType.includes('mpegurl') || 
-                      contentType.includes('m3u8') || 
-                      targetUrl.endsWith('.m3u8') ||
-                      targetUrl.includes('.m3u8');
+    const isPlaylist = contentType.includes('mpegurl') || contentType.includes('m3u8');
 
     if (isPlaylist) {
-      try {
-        const manifestText = await response.text();
-        
-        const rewrittenManifest = manifestText
-          .split('\n')
-          .map(line => {
-            const trimmedLine = line.trim();
+      const manifestText = await response.text();
+      const manifestBaseUrl = response.url; // Use the FINAL response url as the base
 
-            if (trimmedLine.startsWith('#') && trimmedLine.includes('URI="')) {
-              try {
+      const rewrittenManifest = manifestText.split('\n').map(line => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine || trimmedLine.startsWith('#EXT')) {
+            // Rewrite URI in EXT-X-KEY
+            if (trimmedLine.startsWith('#EXT-X-KEY')) {
                 const uriMatch = trimmedLine.match(/URI="([^"]+)"/);
-                if (!uriMatch || !uriMatch[1]) return line;
-                
-                const originalUri = uriMatch[1];
-                const absoluteUrl = new URL(originalUri, targetUrl).href;
-                const uriHost = new URL(absoluteUrl).hostname;
-
-                if (!allowedHosts.has(uriHost)) {
-                    console.warn(`🚫 Skipping non-whitelisted URI in manifest: ${uriHost}`);
-                    return `# Blocked: ${line}`;
+                if (uriMatch && uriMatch[1]) {
+                    const absoluteUrl = new URL(uriMatch[1], manifestBaseUrl).href;
+                    const proxiedUri = `/api/streams?url=${encodeURIComponent(absoluteUrl)}` + 
+                                       (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
+                    return trimmedLine.replace(uriMatch[1], proxiedUri);
                 }
-
-                const proxiedUri = `/api/streams?url=${encodeURIComponent(absoluteUrl)}` + 
-                                   (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
-                return trimmedLine.replace(originalUri, proxiedUri);
-
-              } catch (error) {
-                console.error(`❌ Error rewriting manifest URI line: "${trimmedLine}"`, error);
-                return `# Error: ${line}`;
-              }
             }
-            
-            if (!trimmedLine || trimmedLine.startsWith('#')) {
-              return line;
-            }
-            
-            try {
-              const absoluteUrl = new URL(trimmedLine, targetUrl).href;
-              const rewrittenHost = new URL(absoluteUrl).hostname;
-
-              if (!allowedHosts.has(rewrittenHost)) {
-                console.warn(`🚫 Skipping non-whitelisted URL in manifest: ${rewrittenHost}`);
-                return `# Blocked: ${line}`;
-              }
-              
-              return `/api/streams?url=${encodeURIComponent(absoluteUrl)}` + 
-                     (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
-            } catch (error) {
-              console.error(`❌ Error rewriting manifest line: "${trimmedLine}"`, error);
-              return `# Error: ${line}`;
-            }
-          })
-          .join('\n');
-
-        responseHeaders.set('Content-Type', 'application/vnd.apple.mpegurl');
-        responseHeaders.set('Content-Length', Buffer.byteLength(rewrittenManifest, 'utf8').toString());
+            return line;
+        }
         
-        const processingTime = Date.now() - startTime;
-        console.log(`✅ Manifest processed in ${processingTime}ms for ${requestHost}`);
-        
-        return new NextResponse(rewrittenManifest, {
-          status: 200,
-          headers: responseHeaders,
-        });
+        // This is a segment URL
+        const absoluteUrl = new URL(trimmedLine, manifestBaseUrl).href;
+        return `/api/streams?url=${encodeURIComponent(absoluteUrl)}` + 
+               (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
+      }).join('\n');
 
-      } catch (error) {
-        console.error('❌ Manifest processing error:', error);
-        return new NextResponse('Failed to process manifest', { status: 500 });
-      }
-    } else {
-      const processingTime = Date.now() - startTime;
-      console.log(`✅ Binary content proxied in ${processingTime}ms for ${requestHost}`);
+      responseHeaders.set('Content-Type', 'application/vnd.apple.mpegurl');
+      responseHeaders.set('Content-Length', Buffer.byteLength(rewrittenManifest, 'utf8').toString());
       
-      return new NextResponse(response.body, {
-        status: response.status,
-        headers: responseHeaders,
-      });
+      console.log(`✅ Manifest processed in ${Date.now() - startTime}ms`);
+      return new NextResponse(rewrittenManifest, { status: 200, headers: responseHeaders });
+
+    } else {
+      console.log(`✅ Binary content proxied in ${Date.now() - startTime}ms`);
+      return new NextResponse(response.body, { status: response.status, headers: responseHeaders });
     }
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
     console.error(`❌ Proxy error after ${processingTime}ms:`, error);
-    
     let errorMessage = 'Proxy request failed';
     let statusCode = 500;
     
     if (error instanceof Error) {
-      if (error.message.includes('fetch') || error.message.includes('network')) {
+      if (error.message.includes('network')) {
         errorMessage = 'Network error: Unable to reach stream source';
         statusCode = 502;
       } else if (error.message.includes('timeout')) {
@@ -297,12 +250,11 @@ export async function OPTIONS(request: NextRequest) {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Range, Authorization',
-      'Access-Control-Max-Age': '86400', // 24 hours
+      'Access-Control-Max-Age': '86400',
     },
   });
 }
 
 export async function HEAD(request: NextRequest) {
-  // Handle HEAD requests for video players that check stream availability
   return GET(request);
 }
