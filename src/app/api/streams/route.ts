@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// This function is no longer needed as we will handle hosts dynamically.
-// We remove it to reduce complexity and potential bugs.
-
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
@@ -17,27 +14,27 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Proxy] Request received for: ${targetUrl}`);
 
-    // --- Core Logic ---
+    // --- The Core Logic: This is the definitive version ---
     let finalResponse: Response;
-
-    // 1. Prepare the disguise (headers) for the request.
     const fetchHeaders: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     };
-    // **THE FIX**: We ONLY add the Referer disguise if it's explicitly provided.
-    // This protects LA7 and NBA TV from being broken.
+
+    // **THE FIX**: If a stream needs a disguise, we give it the FULL disguise.
     if (targetReferer) {
       fetchHeaders['Referer'] = targetReferer;
+      // The Origin header is the crucial missing piece.
+      fetchHeaders['Origin'] = new URL(targetReferer).origin;
     }
 
-    // 2. Determine if we are talking to a gatekeeper (.php) or getting content directly.
+    // Determine if the URL is a gatekeeper (.php) or direct content (.m3u8, .ts, etc.)
     const isGatekeeper = targetUrl.includes('.php');
 
     if (isGatekeeper) {
       // --- Handle the Gatekeeper ---
-      console.log(`[Proxy] Gatekeeper detected. Applying disguise and expecting redirect.`);
+      console.log(`[Proxy] Gatekeeper stream detected. Applying disguise and expecting redirect.`);
       
-      // We must handle the redirect manually to ensure the disguise is not lost.
+      // We must handle the redirect manually.
       const gatekeeperResponse = await fetch(targetUrl, {
         headers: fetchHeaders,
         redirect: 'manual', 
@@ -50,25 +47,23 @@ export async function GET(request: NextRequest) {
       }
       
       console.log(`[Proxy] Gatekeeper redirected. Fetching final stream from: ${redirectUrl}`);
-      // Now fetch the actual M3U8 playlist from the URL the gatekeeper gave us,
-      // using the same disguise. `fetch` will follow any further internal redirects.
+      // Now fetch the real M3U8 playlist from the URL the gatekeeper gave us.
       finalResponse = await fetch(redirectUrl, { headers: fetchHeaders });
 
     } else {
-      // --- Handle Direct Content (LA7, NBA TV, or a .ts video segment) ---
+      // --- Handle Direct Content (LA7, NBA TV, or a .ts video segment from a protected stream) ---
       console.log(`[Proxy] Direct content request.`);
-      // Just fetch the URL. The headers are already correctly set (with or without Referer).
+      // Just fetch the URL. The headers are already correctly set (with or without the full disguise).
       finalResponse = await fetch(targetUrl, { headers: fetchHeaders });
     }
 
-    // --- 3. Process the Final Response ---
+    // --- Process the Final Response ---
     if (!finalResponse.ok) {
       console.error(`[Proxy] Upstream error: ${finalResponse.status} for ${finalResponse.url}`);
       return new NextResponse(`Upstream error: ${finalResponse.status}`, { status: finalResponse.status });
     }
     console.log(`[Proxy] Success from upstream: ${finalResponse.status} ${finalResponse.url}`);
 
-    // Create a fresh set of headers to send back to our video player.
     const responseHeaders = new Headers({
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
@@ -79,23 +74,18 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // If the response is a playlist, we must rewrite its internal URLs.
     const contentType = finalResponse.headers.get('content-type') || '';
     if (contentType.includes('mpegurl') || contentType.includes('m3u8')) {
       const manifestText = await finalResponse.text();
-      // The base URL for rewriting MUST be the final URL after all redirects.
-      const manifestBaseUrl = finalResponse.url; 
+      const manifestBaseUrl = finalResponse.url;
 
       const rewrittenManifest = manifestText.split('\n').map(line => {
         const trimmedLine = line.trim();
-        // If the line is not a URL, pass it through.
         if (!trimmedLine || trimmedLine.startsWith('#')) {
-          // Special case: Some playlists have key URLs that also need to be proxied.
           if (trimmedLine.startsWith('#EXT-X-KEY')) {
               const uriMatch = trimmedLine.match(/URI="([^"]+)"/);
               if (uriMatch?.[1]) {
                   const absoluteKeyUrl = new URL(uriMatch[1], manifestBaseUrl).href;
-                  // We MUST carry the referer forward for the key request.
                   const proxiedKeyUrl = `/api/streams?url=${encodeURIComponent(absoluteKeyUrl)}` + 
                                      (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
                   return trimmedLine.replace(uriMatch[1], proxiedKeyUrl);
@@ -104,10 +94,8 @@ export async function GET(request: NextRequest) {
           return line;
         }
         
-        // This line is a video segment URL. Rewrite it to point back to our proxy.
         const absoluteSegmentUrl = new URL(trimmedLine, manifestBaseUrl).href;
-        // **CRITICAL**: We carry the `referer` forward so the next request for this
-        // segment will also have the correct disguise.
+        // CRITICAL: Carry the referer forward for every segment request.
         return `/api/streams?url=${encodeURIComponent(absoluteSegmentUrl)}` + 
                (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
       }).join('\n');
@@ -119,7 +107,6 @@ export async function GET(request: NextRequest) {
       return new NextResponse(rewrittenManifest, { status: 200, headers: responseHeaders });
 
     } else {
-      // If it's a video segment or other binary data, just stream it directly.
       console.log(`[Proxy] Binary content served in ${Date.now() - startTime}ms`);
       return new NextResponse(finalResponse.body, { status: 200, headers: responseHeaders });
     }
