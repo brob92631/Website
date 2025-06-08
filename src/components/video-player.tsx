@@ -12,182 +12,100 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
   const hlsRef = useRef<Hls | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // --- UX: State to trigger a retry without a full page reload ---
+  const [retryCount, setRetryCount] = useState(0);
+
+  const handleRetry = () => {
+    setError(null);
+    setIsLoading(true);
+    setRetryCount(count => count + 1);
+  };
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    // Reset state on src change or retry
     setIsLoading(true);
     setError(null);
 
-    // Clean up previous HLS instance
-    if (hlsRef.current) {
-      hlsRef.current.destroy();
-      hlsRef.current = null;
-    }
-
-    if (Hls.isSupported()) {
+    const setupHls = () => {
+      // --- PERFORMANCE: Enable web workers for smoother playback ---
       const hls = new Hls({
         debug: false,
-        enableWorker: false,
-        lowLatencyMode: false,
-        backBufferLength: 90,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 120,
-        maxBufferSize: 60 * 1000 * 1000,
-        maxBufferHole: 0.5,
-        highBufferWatchdogPeriod: 2,
-        nudgeOffset: 0.1,
-        nudgeMaxRetry: 5,
-        maxFragLookUpTolerance: 0.25,
+        enableWorker: true, // Set to true for performance
+        // Sensible defaults for live streaming
         liveSyncDurationCount: 3,
         liveMaxLatencyDurationCount: 10,
-        liveDurationInfinity: true,
+        // Timeouts
         manifestLoadingTimeOut: 20000,
-        manifestLoadingMaxRetry: 4,
-        manifestLoadingRetryDelay: 1000,
+        manifestLoadingMaxRetry: 3,
         fragLoadingTimeOut: 20000,
-        fragLoadingMaxRetry: 6,
-        fragLoadingRetryDelay: 1000,
-        xhrSetup: (xhr: XMLHttpRequest, url: string) => {
-          xhr.withCredentials = false;
-          xhr.timeout = 20000;
-          console.log('HLS XHR request to:', url);
-        }
+        fragLoadingMaxRetry: 4,
       });
-
       hlsRef.current = hls;
 
-      hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-        console.log('HLS: Media attached');
-        hls.loadSource(src);
-      });
+      hls.loadSource(src);
+      hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         console.log('HLS: Manifest parsed, starting playback');
         setIsLoading(false);
-        video.play().catch(err => {
-          console.warn('Autoplay failed:', err);
-          setIsLoading(false);
-        });
-      });
-
-      hls.on(Hls.Events.FRAG_LOADED, () => {
-        setIsLoading(false);
+        video.play().catch(() => console.warn('Autoplay was prevented.'));
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error('HLS Error:', data);
-        console.error('HLS Error Details:', {
-          type: data.type,
-          details: data.details,
-          fatal: data.fatal,
-          url: data.url,
-          response: data.response
-        });
-        
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('Fatal network error, trying to recover...');
-              if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR) {
-                setError('Cannot load stream - source may be offline');
-                setIsLoading(false);
-              } else {
-                setError('Network error - retrying...');
-                setTimeout(() => {
-                  try {
-                    hls.startLoad();
-                    setError(null);
-                  } catch (e) {
-                    console.error('Recovery failed:', e);
-                    setError('Stream unavailable');
-                    setIsLoading(false);
-                  }
-                }, 3000);
-              }
+              setError('Network error, stream might be offline.');
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('Fatal media error, trying to recover...');
-              setError('Media error - retrying...');
-              setTimeout(() => {
-                try {
-                  hls.recoverMediaError();
-                  setError(null);
-                } catch (e) {
-                  console.error('Media recovery failed:', e);
-                  setError('Playback failed');
-                  setIsLoading(false);
-                }
-              }, 2000);
+              setError('Media error, trying to recover...');
+              hls.recoverMediaError(); // Try to recover
               break;
             default:
-              console.log('Fatal error, cannot recover:', data.details);
-              setError('Stream playback failed - source may be unavailable');
-              setIsLoading(false);
+              setError('Stream playback failed.');
               break;
           }
-        } else {
-          // Non-fatal errors - just log them
-          console.warn('Non-fatal HLS error:', data.details);
+          setIsLoading(false);
         }
       });
+    };
+    
+    // Clean up previous instance if it exists
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+    }
 
-      // Additional event listeners for better debugging
-      hls.on(Hls.Events.FRAG_PARSING_USERDATA, () => {
-        setIsLoading(false);
-      });
-
-      hls.attachMedia(video);
-
+    if (Hls.isSupported()) {
+      setupHls();
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari native HLS support
+      // Native HLS support (Safari)
       video.src = src;
       video.addEventListener('loadedmetadata', () => {
         setIsLoading(false);
-        video.play().catch(err => {
-          console.warn('Autoplay failed:', err);
-          setIsLoading(false);
-        });
-      });
-      video.addEventListener('error', () => {
-        setError('Playback failed - stream may be unavailable');
-        setIsLoading(false);
+        video.play().catch(() => console.warn('Autoplay was prevented.'));
       });
     } else {
-      setError('HLS not supported in this browser');
+      setError('HLS is not supported in this browser.');
       setIsLoading(false);
     }
 
-    // Video event listeners
-    const handleLoadStart = () => setIsLoading(true);
-    const handleCanPlay = () => setIsLoading(false);
     const handleWaiting = () => setIsLoading(true);
     const handlePlaying = () => setIsLoading(false);
-    const handleError = () => {
-      setError('Video playback error');
-      setIsLoading(false);
-    };
-
-    video.addEventListener('loadstart', handleLoadStart);
-    video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('playing', handlePlaying);
-    video.addEventListener('error', handleError);
 
     return () => {
       if (hlsRef.current) {
         hlsRef.current.destroy();
-        hlsRef.current = null;
       }
-      
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('playing', handlePlaying);
-      video.removeEventListener('error', handleError);
     };
-  }, [src]);
+  }, [src, retryCount]); // Re-run effect on src change OR retryCount change
 
   return (
     <div className="relative w-full h-full bg-black">
@@ -197,12 +115,12 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
         controls
         playsInline
         muted
-        preload="metadata"
+        autoPlay
         style={{ objectFit: 'contain' }}
       />
       
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 pointer-events-none">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
             <p className="text-white text-lg">Loading stream...</p>
@@ -211,12 +129,12 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
       )}
       
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
-          <div className="text-center text-red-400">
-            <p className="text-lg mb-2">⚠️ {error}</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-80">
+          <div className="text-center text-red-400 p-4 rounded-lg bg-background">
+            <p className="text-lg mb-4">⚠️ {error}</p>
             <button 
-              onClick={() => window.location.reload()} 
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+              onClick={handleRetry}
+              className="px-4 py-2 bg-primary text-white rounded hover:opacity-80 transition-opacity"
             >
               Retry
             </button>
