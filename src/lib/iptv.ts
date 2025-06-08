@@ -12,11 +12,11 @@ export interface Stream {
 
 const toKebabCase = (str: string) => 
   str.toLowerCase()
-    .replace(/\s+/g, '-')         // Replace spaces with -
-    .replace(/[^\w-]+/g, '')    // Remove all non-word chars
-    .replace(/--+/g, '-')         // Replace multiple - with single -
-    .replace(/^-+/, '')           // Trim - from start of text
-    .replace(/-+$/, '');          // Trim - from end of text
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
 
 // === LIST 1: Featured - Major Sports & International News ===
 const featuredStreams: Stream[] = [
@@ -27,45 +27,30 @@ const featuredStreams: Stream[] = [
     category: "Basketball",
     url: "https://v13.thetvapp.to/hls/NBATV/tracks-v1a1/mono.m3u8?token=l5LXdrvnthAkYhx2IMcXOA&expires=1749416469&user_id=Q2xCRmRWRGpvYkVNMjlBcWJKbW1GN2RyQnVLa25zajlnQWs0WlBkNA==",
   },
+  // French Sports
   { id: "l-equipe-tv-fr", title: "L'Équipe TV", description: "Major French sports channel.", category: "Sports", url: "https://dshn8inoshngm.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-gac2i63dmu8b7/LEquipe_FR.m3u8" },
   { id: "sport-en-france-fr", title: "Sport en France", description: "French national sports broadcaster.", category: "Sports", url: "https://sp1564435593.mytvchain.info/live/sp1564435593/index.m3u8" },
-  { id: "fifa-plus-fr", title: "FIFA+ (French)", description: "Official FIFA streaming channel.", category: "Football", url: "https://37b4c228.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWZyX0ZJRkFQbHVzRnJlbmNoX0hMUw/playlist.m3u8" },
+  // Arabic Sports
   { id: "al-kass-1-qa", title: "Al Kass 1 (Qatar)", description: "Qatari sports channel.", category: "Sports", url: "https://liveakgr.alkassdigital.net/hls/live/2097037/Alkass1muytrdc/master.m3u8" },
   { id: "dubai-sports-1-ae", title: "Dubai Sports 1 (UAE)", description: "UAE sports broadcaster.", category: "Sports", url: "https://dmidspta.cdn.mgmlcdn.com/dubaisports/smil:dubaisports.stream.smil/chunklist.m3u8" },
+  { id: "abu-dhabi-sports-1-ae", title: "Abu Dhabi Sports 1", description: "UAE sports channel.", category: "Sports", url: "https://vo-live-media.cdb.cdn.orange.com/Content/Channel/AbuDhabiSportsChannel1/HLS/index.m3u8" },
+  // Turkish Sports
   { id: "a-spor-tr", title: "A Spor (Turkey)", description: "Turkish sports channel.", category: "Sports", url: "https://trkvz-live.daioncdn.net/aspor/aspor.m3u8" },
-  { id: "teledeporte-es", title: "Teledeporte (Spain)", description: "Spanish public sports channel.", category: "Sports", url: "https://ztnr.rtve.es/ztnr/1712295.m3u8" },
-  { id: "supertennis-it", title: "SuperTennis (Italy)", description: "Italian channel dedicated to tennis.", category: "Tennis", url: "https://live-embed.supertennix.hiway.media/restreamer/supertennix_client/gpu-a-c0-16/restreamer/rtmp/hls/h24_supertennix/manifest.m3u8" },
+  { id: "trt-spor-tr", title: "TRT Spor (Turkey)", description: "Turkish public sports channel.", category: "Sports", url: "https://tv-trtspor1.medya.trt.com.tr/master.m3u8" },
+  // Spanish Sports
+  { id: "teledeporte-es", title: "Teledeporte (TDP) (Spain)", description: "Spanish public sports channel.", category: "Sports", url: "https://ztnr.rtve.es/ztnr/1712295.m3u8" },
   { id: "real-madrid-tv-es", title: "Real Madrid TV (Spain)", description: "Official club channel.", category: "Football", url: "https://rmtv-canela.amagi.tv/playlist.m3u8" },
+  // Italian Sports
+  { id: "supertennis-it", title: "SuperTennis (Italy)", description: "Italian channel dedicated to tennis.", category: "Tennis", url: "https://live-embed.supertennix.hiway.media/restreamer/supertennix_client/gpu-a-c0-16/restreamer/rtmp/hls/h24_supertennix/manifest.m3u8" },
+  { id: "sportitalia-it", title: "Sportitalia (Italy)", description: "Italian sports channel.", category: "Sports", url: "https://di-kzbhv8pw.vo.lswcdn.net/sportitalia/sihd/playlist.m3u8" },
+  // International News
   { id: "cnn-international", title: "CNN International", description: "Global news coverage.", category: "News", url: "https://turnerlive.warnermediacdn.com/hls/live/586497/cnngo/cnni/VIDEO_0_3564000.m3u8" },
   { id: "bbc-news-world", title: "BBC News", description: "British international news.", category: "News", url: "https://vs-hls-push-ww-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_news_channel_hd/pc_hd_abr_v2.m3u8" },
   { id: "al-jazeera-english", title: "Al Jazeera English", description: "International news from Qatar.", category: "News", url: "https://live-hls-web-aje.getaj.net/AJE/master.m3u8" },
   { id: "france-24-english", title: "France 24 (English)", description: "International news from France.", category: "News", url: "https://live.france24.com/hls/live/2037218/F24_EN_HI_HLS/master_5000.m3u8" },
   { id: "euronews-english", title: "Euronews (English)", description: "Pan-European news.", category: "News", url: "https://euronews-live-eng-uk.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6503/bitok/e/26031/euronews-en.m3u8" },
   { id: "dw-english", title: "DW English (Germany)", description: "German international broadcaster.", category: "News", url: "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8" },
-  { id: "abc-news-us", title: "ABC News Live (USA)", description: "American news channel.", category: "News", url: "https://content.uplynk.com/channel/3324f2467c414329b3b0cc5cd987b6be.m3u8" },
-  { id: "cbs-news-us", title: "CBS News (USA)", description: "American news channel.", category: "News", url: "https://cbsn-us.cbsnstream.cbsnews.com/out/v1/55a8648e8f134e82a470f83d562deeca/master.m3u8" },
-  { id: "nbc-news-now-us", title: "NBC News NOW (USA)", description: "American news channel.", category: "News", url: "https://d2ujxo1akrn26l.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-rm6mbj1qgu3wm/master.m3u8" },
-];
-
-// === French Channels ===
-const frenchStreams: Stream[] = [
-  { id: toKebabCase("BFM TV"), title: "BFM TV", description: "French news channel.", category: "News", url: "https://ncdn-live-bfm.pfd.sfr.net/shls/LIVE$BFM_TV/index.m3u8?start=LIVE&end=END" },
-  { id: toKebabCase("CNEWS"), title: "CNEWS", description: "French news channel.", category: "News", url: "https://hls-m015-live-aka-canalplus.akamaized.net/live/disk/cnews-clair-hd/hls-v3-hd-clair/cnews-clair-hd.m3u8" },
-  { id: toKebabCase("LCI"), title: "LCI", description: "French news channel.", category: "News", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/btv/py/lci1.m3u8" },
-  { id: toKebabCase("France Info"), title: "France Info", description: "Public news channel.", category: "News", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/ftv/py/frin.m3u8" },
-  { id: toKebabCase("Euronews FR"), title: "Euronews (French)", description: "Pan-European news.", category: "News", url: "https://euronews-live-fre-fr.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6564/bitok/e/26032/euronews-fr.m3u8" },
-  { id: toKebabCase("TV5MONDE Info"), title: "TV5MONDE Info", description: "International Francophone news.", category: "News", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(info)/index.m3u8" },
-  { id: toKebabCase("France 24 FR"), title: "France 24 (French)", description: "International news.", category: "News", url: "https://live.france24.com/hls/live/2037179/F24_FR_HI_HLS/master_5000.m3u8" },
-  { id: toKebabCase("TF1"), title: "TF1", description: "Major private general channel.", category: "General", url: "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/tf1plus/tf1.m3u8" },
-  { id: toKebabCase("France 2"), title: "France 2", description: "Main public television channel.", category: "General", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/ftv/py/fr2.m3u8" },
-  { id: toKebabCase("France 3"), title: "France 3", description: "Regional public television.", category: "General", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/ftv/py/fr3.m3u8" },
-  { id: toKebabCase("France 5"), title: "France 5", description: "Public educational channel.", category: "Education", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/ftv/py/fr5.m3u8" },
-  { id: toKebabCase("ARTE FR"), title: "ARTE (French)", description: "European culture channel.", category: "Culture", url: "https://artesimulcast.akamaized.net/hls/live/2031003/artelive_fr/index.m3u8" },
-  { id: toKebabCase("TV5MONDE FBSM"), title: "TV5MONDE FBSM", description: "International Francophone channel.", category: "General", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(fbs)/index.m3u8" },
-  { id: toKebabCase("RMC Story"), title: "RMC Story", description: "Documentary and reality channel.", category: "Documentary", url: "https://d36bxc1bknkxrk.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-3ewcp19zjaxpt/index.m3u8" },
-  { id: toKebabCase("RMC Découverte"), title: "RMC Découverte", description: "Documentary channel.", category: "Documentary", url: "https://d2mt8for1pddy4.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-6uronj7gzvy4j/index.m3u8" },
-  { id: toKebabCase("Gulli"), title: "Gulli", description: "Kids channel.", category: "Kids", url: "https://origin-caf900c010ea8046.live.6cloud.fr/out/v1/c65696b42ca34e97a9b5f54758d6dd50/cmaf/hlsfmp4_short_q2hyb21h_gulli_sd_index.m3u8" },
-  { id: toKebabCase("M6"), title: "M6", description: "Major French private channel (DRM likely).", category: "General", url: "https://origin-18cd60dea8190528.live.6cloud.fr/out/v1/72072059b9d541feac3c9328728d8304/cmaf/hlsfmp4_short_fp00_m6_hd_index.m3u8" }, // DRM likely
+  { id: "sky-news-uk", title: "Sky News (UK)", description: "British news channel.", category: "News", url: "https://linear417-gb-hls1-prd-ak.cdn.skycdp.com/100e/Content/HLS_001_1080_30/Live/channel(skynews)/index_1080-30.m3u8" },
 ];
 
 // === Italian Channels ===
@@ -76,8 +61,35 @@ const italianStreams: Stream[] = [
   { id: "rai-italia-it", title: "Rai Italia", description: "Italian international channel.", category: "General", url: "https://ilglobotv-live.akamaized.net/channels/RAIItaliaSudAfrica/Live.m3u8"},
   { id: "class-cnbc-it", title: "Class CNBC", description: "Italian financial news.", category: "Business", url: "https://859c1818ed614cc5b0047439470927b0.msvdn.net/live/S57048752/8raQqCXozN1H/playlist.m3u8"},
   { id: "radio-italia-tv-it", title: "Radio Italia TV", description: "Italian music television.", category: "Music", url: "https://radioitaliatv.akamaized.net/hls/live/2093117/RadioitaliaTV/master.m3u8" },
-  { id: "sportitalia-it", title: "Sportitalia", description: "Italian sports channel.", category: "Sports", url: "https://di-kzbhv8pw.vo.lswcdn.net/sportitalia/sihd/playlist.m3u8" },
   { id: "euronews-it", title: "Euronews (Italian)", description: "Pan-European news.", category: "News", url: "https://euronews-live-ita-it.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6570/bitok/e/25674/euronews-it.m3u8" },
+  { id: toKebabCase("Deejay TV IT"), title: "Deejay TV", description: "Music and entertainment.", category: "Music", url: "https://4c4b867c89244861ac216426883d1ad0.msvdn.net/live/S85984808/sMO0tz9Sr2Rk/playlist.m3u8" },
+  { id: toKebabCase("RTL 102.5 IT"), title: "RTL 102.5", description: "Music and entertainment.", category: "Music", url: "https://dd782ed59e2a4e86aabf6fc508674b59.msvdn.net/live/S97044836/tbbP8T1ZRPBL/playlist_video.m3u8" },
+];
+
+// === French (+ FR-speaking BE, CH, CA) Channels ===
+const frenchStreams: Stream[] = [
+  { id: toKebabCase("BFM TV FR"), title: "BFM TV", description: "French news channel.", category: "News", url: "https://ncdn-live-bfm.pfd.sfr.net/shls/LIVE$BFM_TV/index.m3u8?start=LIVE&end=END" },
+  { id: toKebabCase("CNEWS FR"), title: "CNEWS", description: "French news channel.", category: "News", url: "https://hls-m015-live-aka-canalplus.akamaized.net/live/disk/cnews-clair-hd/hls-v3-hd-clair/cnews-clair-hd.m3u8" },
+  { id: toKebabCase("LCI FR"), title: "LCI", description: "French news channel.", category: "News", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/btv/py/lci1.m3u8" },
+  { id: toKebabCase("France Info FR"), title: "France Info", description: "Public news channel.", category: "News", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/ftv/py/frin.m3u8" },
+  { id: toKebabCase("Euronews FR"), title: "Euronews (French)", description: "Pan-European news.", category: "News", url: "https://euronews-live-fre-fr.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6564/bitok/e/26032/euronews-fr.m3u8" },
+  { id: toKebabCase("TV5MONDE Info FR"), title: "TV5MONDE Info", description: "International Francophone news.", category: "News", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(info)/index.m3u8" },
+  { id: toKebabCase("France 24 FR"), title: "France 24 (French)", description: "International news.", category: "News", url: "https://live.france24.com/hls/live/2037179/F24_FR_HI_HLS/master_5000.m3u8" },
+  { id: toKebabCase("TF1 FR"), title: "TF1", description: "Major private general channel.", category: "General", url: "https://raw.githubusercontent.com/Paradise-91/ParaTV/main/streams/tf1plus/tf1.m3u8" },
+  { id: toKebabCase("France 2 FR"), title: "France 2", description: "Main public television channel.", category: "General", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/ftv/py/fr2.m3u8" },
+  { id: toKebabCase("France 3 FR"), title: "France 3", description: "Regional public television.", category: "General", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/ftv/py/fr3.m3u8" },
+  { id: toKebabCase("France 5 FR"), title: "France 5", description: "Public educational channel.", category: "Education", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/master/ressources/ftv/py/fr5.m3u8" },
+  { id: toKebabCase("ARTE FR"), title: "ARTE (French)", description: "European culture channel.", category: "Culture", url: "https://artesimulcast.akamaized.net/hls/live/2031003/artelive_fr/index.m3u8" },
+  { id: toKebabCase("TV5MONDE FBSM FR"), title: "TV5MONDE FBSM", description: "International Francophone channel.", category: "General", url: "https://ott.tv5monde.com/Content/HLS/Live/channel(fbs)/index.m3u8" },
+  { id: toKebabCase("RMC Story FR"), title: "RMC Story", description: "Documentary and reality channel.", category: "Documentary", url: "https://d36bxc1bknkxrk.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-3ewcp19zjaxpt/index.m3u8" },
+  { id: toKebabCase("RMC Découverte FR"), title: "RMC Découverte", description: "Documentary channel.", category: "Documentary", url: "https://d2mt8for1pddy4.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-6uronj7gzvy4j/index.m3u8" },
+  { id: toKebabCase("Gulli FR"), title: "Gulli", description: "Kids channel.", category: "Kids", url: "https://origin-caf900c010ea8046.live.6cloud.fr/out/v1/c65696b42ca34e97a9b5f54758d6dd50/cmaf/hlsfmp4_short_q2hyb21h_gulli_sd_index.m3u8" },
+  { id: toKebabCase("M6 FR"), title: "M6", description: "Major French private channel.", category: "General", url: "https://origin-18cd60dea8190528.live.6cloud.fr/out/v1/72072059b9d541feac3c9328728d8304/cmaf/hlsfmp4_short_fp00_m6_hd_index.m3u8" }, // DRM likely
+  { id: toKebabCase("Equidia FR"), title: "Équidia", description: "Equestrian sports channel.", category: "Sports", url: "https://raw.githubusercontent.com/schumijo/iptv/main/playlists/equidia/equidia-live.m3u8", userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0", referer: "https://www.equidia.fr/"},
+  { id: toKebabCase("LN24 BE"), title: "LN24 (Belgium)", description: "Belgian news channel.", category: "News", url: "https://live-ln24.digiteka.com/1911668011/index.m3u8"},
+  { id: toKebabCase("Monaco Info MC"), title: "Monaco Info", description: "News from Monaco.", category: "News", url: "https://webtv.monacoinfo.com/live/prod/index.m3u8"},
+  { id: toKebabCase("RDI Canada CA"), title: "RDI Canada", description: "Canadian French-language news.", category: "News", url: "https://rcavlive.akamaized.net/hls/live/704025/xcanrdi/master.m3u8"},
+  { id: toKebabCase("Léman Bleu CH"), title: "Léman Bleu (Switzerland)", description: "Swiss regional channel.", category: "Regional", url: "https://livevideo.vedge.infomaniak.com/livecast/naxoo/master.m3u8"},
 ];
 
 // === Spanish Channels ===
@@ -85,11 +97,12 @@ const spanishStreams: Stream[] = [
     { id: toKebabCase("TVE Internacional ES"), title: "TVE Internacional", description: "International Spanish public channel.", category: "General", url: "https://rtvelivestream-rtveplayplus.rtve.es/rtvesec/int/tvei_eu_main_720.m3u8" },
     { id: toKebabCase("TVE La 1 ES"), title: "TVE La 1", description: "Main public channel.", category: "General", url: "https://ztnr.rtve.es/ztnr/1688877.m3u8" },
     { id: toKebabCase("TVE 24 H ES"), title: "TVE 24 H", description: "24/7 news channel.", category: "News", url: "https://ztnr.rtve.es/ztnr/1694255.m3u8" },
-    { id: toKebabCase("Antena 3 ES"), title: "Antena 3", description: "Private general channel.", category: "General", url: "https://tvnoov.com/fadoo/antena3.m3u8" }, // Might be less stable
-    { id: toKebabCase("Cuatro ES"), title: "Cuatro", description: "Private general channel.", category: "General", url: "https://tvnoov.com/fadoo/cuatrohd.m3u8" }, // Might be less stable
-    { id: toKebabCase("Telecinco ES"), title: "Telecinco", description: "Private general channel.", category: "General", url: "https://tvnoov.com/fadoo/telecincohd.m3u8" }, // Might be less stable
-    { id: toKebabCase("La Sexta ES"), title: "La Sexta", description: "Private general channel.", category: "General", url: "https://tvnoov.com/fadoo/lasexta.m3u8" }, // Might be less stable
+    { id: toKebabCase("Antena 3 ES"), title: "Antena 3", description: "Private general channel.", category: "General", url: "https://tvnoov.com/fadoo/antena3.m3u8" }, 
+    { id: toKebabCase("Cuatro ES"), title: "Cuatro", description: "Private general channel.", category: "General", url: "https://tvnoov.com/fadoo/cuatrohd.m3u8" }, 
+    { id: toKebabCase("Telecinco ES"), title: "Telecinco", description: "Private general channel.", category: "General", url: "https://tvnoov.com/fadoo/telecincohd.m3u8" }, 
+    { id: toKebabCase("La Sexta ES"), title: "La Sexta", description: "Private general channel.", category: "General", url: "https://tvnoov.com/fadoo/lasexta.m3u8" }, 
     { id: toKebabCase("Euronews ES"), title: "Euronews (Spanish)", description: "Pan-European news.", category: "News", url: "https://euronews-live-spa-es.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6571/bitok/e/26034/euronews-es.m3u8" },
+    { id: toKebabCase("Trece ES"), title: "TRECE", description: "Generalist channel.", category: "General", url: "https://play.cdn.enetres.net/091DB7AFBD77442B9BA2F141DCC182F5021/021/playlist.m3u8" },
     { id: toKebabCase("France 24 ES"), title: "France 24 (Spanish)", description: "International news.", category: "News", url: "https://live.france24.com/hls/live/2037220/F24_ES_HI_HLS/master_5000.m3u8" },
     { id: toKebabCase("DW Español"), title: "DW Español", description: "German international broadcaster.", category: "News", url: "https://dwamdstream104.akamaized.net/hls/live/2015530/dwstream104/index.m3u8" },
 ];
@@ -110,7 +123,7 @@ const turkishStreams: Stream[] = [
     { id: toKebabCase("TRT Belgesel"), title: "TRT Belgesel", description: "Documentary channel.", category: "Documentary", url: "https://tv-trtbelgesel-dai.medya.trt.com.tr/master.m3u8" },
     { id: toKebabCase("TRT Çocuk"), title: "TRT Çocuk", description: "Kids channel.", category: "Kids", url: "https://tv-trtcocuk.medya.trt.com.tr/master.m3u8" },
     { id: toKebabCase("TRT Müzik"), title: "TRT Müzik", description: "Music channel.", category: "Music", url: "https://tv-trtmuzik.medya.trt.com.tr/master.m3u8" },
-    { id: toKebabCase("Kral Pop TR"), title: "Kral Pop", description: "Turkish pop music.", category: "Music", url: "http://dygvideo.dygdigital.com/live/hls/kralpop?m3u8" },
+    { id: toKebabCase("TRT Kurdî"), title: "TRT Kurdî", description: "Kurdish language channel.", category: "General", url: "https://tv-trtkurdi.medya.trt.com.tr/master.m3u8" },
 ];
 
 // === Maghreb (Morocco, Algeria, Tunisia) ===
@@ -121,7 +134,7 @@ const maghrebStreams: Stream[] = [
     { id: toKebabCase("Medi 1 TV Maghreb"), title: "Medi 1 TV (Maghreb)", description: "Pan-Maghreb news and general.", category: "General", url: "https://streaming1.medi1tv.com/live/smil:medi1tv.smil/playlist.m3u8" },
     { id: toKebabCase("Watania 1 TN"), title: "Watania 1 (Tunisia)", description: "Tunisian public TV.", category: "General", url: "http://live.watania1.tn:1935/live/watanya1.stream/playlist.m3u8" },
     { id: toKebabCase("Nessma TV TN"), title: "Nessma TV (Tunisia)", description: "Tunisian private channel.", category: "General", url: "https://edge66.magictvbox.com/liveApple/nessma/index.m3u8" },
-    { id: toKebabCase("TV2 Algérie DZ"), title: "TV2 Algérie", description: "Algerian public channel.", category: "General", url: "http://69.64.57.208/canalalgerie/playlist.m3u8" }, // IP Link, might be unstable
+    { id: toKebabCase("TV2 Algérie DZ"), title: "TV2 Algérie", description: "Algerian public channel.", category: "General", url: "http://69.64.57.208/canalalgerie/playlist.m3u8" }, 
     { id: toKebabCase("Echorouk TV DZ"), title: "Echorouk TV (Algeria)", description: "Algerian private channel.", category: "General", url: "https://hls-distrib-rlb1.dzsecurity.net/live/EchoroukTV/playlist.m3u8?e=&token=" },
 ];
 
@@ -173,7 +186,7 @@ const otherEuropeanStreams: Stream[] = [
     { id: toKebabCase("RTP 1 PT"), title: "RTP 1 (Portugal)", description: "Portuguese main public channel.", category: "General", url: "https://streaming-live.rtp.pt/liverepeater/smil:rtpClean1HD.smil/playlist.m3u8", userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0", referer: "https://www.rtp.pt/play/direto/rtp1" },
     { id: toKebabCase("RTP 3 PT"), title: "RTP 3 (Portugal)", description: "Portuguese news channel.", category: "News", url: "https://streaming-live.rtp.pt/liverepeater/rtpnHD.smil/playlist.m3u8", userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0", referer: "https://www.rtp.pt/play/direto/rtp3" },
     { id: toKebabCase("SIC PT"), title: "SIC (Portugal)", description: "Portuguese private channel.", category: "General", url: "https://d1zx6l1dn8vaj5.cloudfront.net/out/v1/b89cc37caa6d418eb423cf092a2ef970/index.m3u8" },
-    { id: toKebabCase("CNN Portugal"), title: "CNN Portugal", description: "Portuguese news channel.", category: "News", url: "https://video-auth7.iol.pt/edge_servers/cnn-720p/playlist.m3u8" }, // Was tkn-blocked
+    { id: toKebabCase("CNN Portugal"), title: "CNN Portugal", description: "Portuguese news channel.", category: "News", url: "https://video-auth7.iol.pt/edge_servers/cnn-720p/playlist.m3u8" }, 
     // Balkan (Croatia, Serbia, Bosnia)
     { id: toKebabCase("HRT 1 HR"), title: "HRT 1 (Croatia)", description: "Croatian public channel.", category: "General", url: "https://webtvstream.bhtelecom.ba/hrt1.m3u8" },
     { id: toKebabCase("RTS 1 RS"), title: "RTS 1 (Serbia)", description: "Serbian public channel.", category: "General", url: "https://webtvstream.bhtelecom.ba/rts1.m3u8" },
@@ -182,7 +195,7 @@ const otherEuropeanStreams: Stream[] = [
     // Poland
     { id: toKebabCase("TVP Polonia PL"), title: "TVP Polonia (Poland)", description: "Polish international channel.", category: "General", url: "https://raw.githubusercontent.com/ipstreet312/freeiptv/refs/heads/master/ressources/wld/tvpol.m3u8" },
     { id: toKebabCase("TVP Info PL"), title: "TVP Info (Poland)", description: "Polish news channel.", category: "News", url: "https://raw.githubusercontent.com/fraudiay79/strm/refs/heads/main/platforms/links/tvpinfo.m3u8" },
-    { id: toKebabCase("Polsat News PL"), title: "Polsat News (Poland)", description: "Polish news channel.", category: "News", url: "http://cdn-s-lb2.pluscdn.pl/lv/1517830/349/hls/f03a76f3/masterlist.m3u8" }, // HTTP link
+    { id: toKebabCase("Polsat News PL"), title: "Polsat News (Poland)", description: "Polish news channel.", category: "News", url: "http://cdn-s-lb2.pluscdn.pl/lv/1517830/349/hls/f03a76f3/masterlist.m3u8" }, 
     // Romania
     { id: toKebabCase("TVR International RO"), title: "TVR International (Romania)", description: "Romanian international channel.", category: "General", url: "https://tvr-tvri.cdn.zitec.com/live/tvri/main.m3u8" },
     { id: toKebabCase("Antena 1 RO"), title: "Antena 1 (Romania)", description: "Romanian private channel.", category: "General", url: "https://live1ag.antenaplay.ro/live_a1ro/live_a1ro.m3u8" },
@@ -212,6 +225,15 @@ const caucasianStreams: Stream[] = [
     { id: toKebabCase("Rustavi 2 GE"), title: "Rustavi 2 (Georgia)", description: "Georgian private channel.", category: "General", url: "https://dvrfl05.tulix.tv/gin-rustavi2/index.m3u8" },
     { id: toKebabCase("H1 ARM"), title: "H1 (Armenia)", description: "Armenian public channel.", category: "General", url: "https://amtv.tulixcdn.com/amtv2/am2abr/index.m3u8" },
     { id: toKebabCase("AZ TV AZ"), title: "AZ TV (Azerbaijan)", description: "Azerbaijani public channel.", category: "General", url: "http://str.yodacdn.net/aztv/index.m3u8" },
+];
+
+// === KURDISH CHANNELS ===
+const kurdishStreams: Stream[] = [
+    { id: toKebabCase("ZAROK KURMANÎ"), title: "ZAROK KURMANÎ", description: "Kurdish kids channel.", category: "Kids", url: "https://zindikurmanci.zaroktv.com.tr/hls/stream.m3u8"},
+    { id: toKebabCase("TRT KURDÎ"), title: "TRT KURDÎ", description: "Turkish state Kurdish channel.", category: "General", url: "https://tv-trtkurdi.medya.trt.com.tr/master.m3u8"},
+    { id: toKebabCase("RÛDAW TV"), title: "RÛDAW TV", description: "Kurdish news channel.", category: "News", url: "https://svs.itworkscdn.net/rudawlive/rudawlive.smil/playlist.m3u8"},
+    { id: toKebabCase("KURDISTAN 24"), title: "KURDISTAN 24", description: "Kurdish news channel.", category: "News", url: "https://d1x82nydcxndze.cloudfront.net/live/index.m3u8"},
+    { id: toKebabCase("KURDSAT"), title: "KURDSAT", description: "Kurdish general channel.", category: "General", url: "https://kurdsat.akamaized.net/hls/kurdsat.m3u8"},
 ];
 
 
@@ -251,4 +273,7 @@ export async function getUsaUkGeneralStreams(): Promise<Stream[]> {
 }
 export async function getCaucasianStreams(): Promise<Stream[]> {
   return caucasianStreams;
+}
+export async function getKurdishStreams(): Promise<Stream[]> {
+  return kurdishStreams;
 }
