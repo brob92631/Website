@@ -200,7 +200,10 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
             <div className="w-full h-full bg-black">
               <DynamicVideoPlayer
                 key={selectedStream.id}
-                src={`/api/streams?url=${encodeURIComponent(selectedStream.url)}`}
+                src={
+                  `/api/streams?url=${encodeURIComponent(selectedStream.url)}` +
+                  (selectedStream.referer ? `&referer=${encodeURIComponent(selectedStream.referer)}` : '')
+                }
               />
             </div>
           </div>
