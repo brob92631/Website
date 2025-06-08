@@ -198,6 +198,7 @@ export function StreamList({
             <div className="text-4xl mb-4">😢</div>
             <h3 className="text-lg font-semibold mb-2">No streams found</h3>
             <p className="text-foreground/60">
+              {/* eslint-disable-next-line react/no-unescaped-entities */}
               Try adjusting your search or filter for the "{currentCategory.name}" category.
             </p>
              {(searchTerm || selectedFilter !== 'all') && (
