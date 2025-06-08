@@ -4,26 +4,21 @@ import play from 'play-dl'; // Import play-dl
 // Helper to select the best HLS stream from play-dl info
 function getBestHlsStreamUrl(info: any): string | null {
   if (info?.format && Array.isArray(info.format)) {
-    // Prefer live HLS streams
     const liveHls = info.format.find((f: any) => f.isLive && f.url?.includes('.m3u8'));
     if (liveHls) return liveHls.url;
-    // Fallback to any HLS stream
     const anyHls = info.format.find((f: any) => f.url?.includes('.m3u8'));
     if (anyHls) return anyHls.url;
   }
-  if (info?.url && info.url.includes('.m3u8')) { // Sometimes info itself is the stream
+  if (info?.url && info.url.includes('.m3u8')) {
     return info.url;
   }
-  // For DailyMotion, the structure might be different under 'sources' or similar
   if (info?.sources?.hls?.url) {
-      return info.sources.hls.url;
+    return info.sources.hls.url;
   }
   if (info?.sources && typeof info.sources === 'object') {
-      const hlsSource = Object.values(info.sources).find((s: any) => s?.url && s.url.includes('.m3u8'));
-      if (hlsSource) return (hlsSource as any).url;
+    const hlsSource = Object.values(info.sources).find((s: any) => s?.url && s.url.includes('.m3u8'));
+    if (hlsSource) return (hlsSource as any).url;
   }
-
-
   return null;
 }
 
@@ -46,30 +41,38 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Missing URL parameter', { status: 400, headers: responseHeaders });
     }
 
+    // These headers are for YOUR proxy's direct fetch calls
     const fetchHeaders: HeadersInit = {
       'User-Agent': customUserAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-      'Accept-Language': customAcceptLanguage || 'en-US,en;q=0.9,fr-FR;q=0.8,fr;q=0.7', // Common default
+      'Accept-Language': customAcceptLanguage || 'en-US,en;q=0.9,fr-FR;q=0.8,fr;q=0.7',
     };
     if (customReferer) fetchHeaders['Referer'] = customReferer;
-    if (customXForwardedFor) fetchHeaders['X-Forwarded-For'] = customXForwardedFor;
+    if (customXForwardedFor) fetchHeaders['X-Forwarded-For'] = customXForwardedFor; // For direct fetch, less likely to be effective than for play-dl source
     if (customReferer) {
         try { fetchHeaders['Origin'] = new URL(customReferer).origin; } catch (e) { /* ignore */ }
     }
 
 
     let effectiveTargetUrl = originalTargetUrl;
-    let isExtractedManifest = false; // Flag to indicate if the URL was derived via play-dl
+    let isExtractedManifest = false;
 
-    // --- MODIFIED SECTION START ---
     const ytValidationResult = play.yt_validate(originalTargetUrl);
-    if (ytValidationResult === 'video' || ytValidationResult === 'playlist') { // 'live' might be implicitly handled by video_info for 'video' type or not distinguished by validate
-    // --- MODIFIED SECTION END ---
+    if (ytValidationResult === 'video' || ytValidationResult === 'playlist') {
       console.log(`[Proxy YT] Detected YouTube URL type "${ytValidationResult}": ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        const streamInfo = await play.video_info(originalTargetUrl, { 
-            requestOptions: { headers: fetchHeaders },
-            source : customXForwardedFor ? { 'x-forwarded-for': customXForwardedFor } : undefined
-        });
+        // play-dl uses its own internal fetching logic.
+        // The `source` option is one way to influence its requests for geo-IP based checks.
+        // For more complex header manipulation for play-dl's internal requests,
+        // global configuration of play-dl (e.g., with cookies) would be needed.
+        const playDlOptions: play.InfoOptions = {};
+        if (customXForwardedFor) {
+            playDlOptions.source = { 'x-forwarded-for': customXForwardedFor };
+        }
+        // If play-dl needs specific User-Agent/Referer for its *own* fetches,
+        // you'd typically set them globally or use cookie options if available.
+        // For now, we are not passing fetchHeaders directly into play.video_info as it was causing type errors.
+
+        const streamInfo = await play.video_info(originalTargetUrl, playDlOptions);
 
         const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo);
         if (m3u8Url) {
@@ -85,10 +88,11 @@ export async function GET(request: NextRequest) {
     } else if (play.dm_validate(originalTargetUrl)) {
       console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        const streamInfo = await play.video_info(originalTargetUrl, { 
-            requestOptions: { headers: fetchHeaders },
-            source : customXForwardedFor ? { 'x-forwarded-for': customXForwardedFor } : undefined
-        });
+        const playDlOptions: play.InfoOptions = {};
+        if (customXForwardedFor) {
+            playDlOptions.source = { 'x-forwarded-for': customXForwardedFor };
+        }
+        const streamInfo = await play.video_info(originalTargetUrl, playDlOptions);
         const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo); 
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
@@ -103,11 +107,11 @@ export async function GET(request: NextRequest) {
     }
     
     console.log(`[Proxy] Requesting Effective URL: ${effectiveTargetUrl}`);
-    if (customUserAgent) console.log(`[Proxy] Using Custom User-Agent: ${customUserAgent}`);
-    if (customReferer) console.log(`[Proxy] Using Custom Referer: ${customReferer}`);
+    if (customUserAgent) console.log(`[Proxy] Using Custom User-Agent (for direct fetch): ${customUserAgent}`);
+    if (customReferer) console.log(`[Proxy] Using Custom Referer (for direct fetch): ${customReferer}`);
 
 
-    const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders });
+    const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders }); // Our direct fetch uses all custom headers
 
     if (!response.ok) {
       console.error(`[Proxy] Upstream error: ${response.status} for ${effectiveTargetUrl} (final URL: ${response.url})`);
@@ -156,7 +160,7 @@ export async function GET(request: NextRequest) {
                     rewrittenLine = trimmedLine.replace(uriMatch[1], proxiedUri);
                 } catch (e) {
                      console.warn(`[Proxy] Invalid URI in manifest: ${uriMatch[1]} with base ${manifestBaseUrl}. Line: ${line}`);
-                     return line; // Return original line if URL construction fails
+                     return line;
                 }
             }
             return rewrittenLine;
@@ -171,7 +175,7 @@ export async function GET(request: NextRequest) {
                 return `/api/streams?url=${encodeURIComponent(absoluteSegmentUrl)}${proxySubParams}`;
             } catch (e) {
                  console.warn(`[Proxy] Invalid segment URL: ${trimmedLine} with base ${manifestBaseUrl}. Line: ${line}`);
-                 return line; // Return original line if URL construction fails
+                 return line;
             }
         }
         return line;
