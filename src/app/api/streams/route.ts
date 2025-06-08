@@ -180,25 +180,49 @@ export async function GET(request: NextRequest) {
       try {
         const manifestText = await response.text();
         
-        // Enhanced manifest rewriting
+        // --- START: CORRECTED MANIFEST REWRITING LOGIC ---
         const rewrittenManifest = manifestText
           .split('\n')
           .map(line => {
             const trimmedLine = line.trim();
+
+            // Handle lines containing a URI attribute (e.g., #EXT-X-KEY, #EXT-X-MAP)
+            if (trimmedLine.startsWith('#') && trimmedLine.includes('URI="')) {
+              try {
+                // Extract the original URI
+                const uriMatch = trimmedLine.match(/URI="([^"]+)"/);
+                if (!uriMatch || !uriMatch[1]) return line; // No URI found, return original line
+                
+                const originalUri = uriMatch[1];
+                
+                // Create an absolute URL for the URI
+                const absoluteUrl = new URL(originalUri, targetUrl).href;
+
+                // Validate the host before rewriting
+                const uriHost = new URL(absoluteUrl).hostname;
+                if (!allowedHosts.has(uriHost)) {
+                    console.warn(`🚫 Skipping non-whitelisted URI in manifest: ${uriHost}`);
+                    return `# Blocked: ${line}`;
+                }
+
+                // Rewrite the line with the proxied URI
+                const proxiedUri = `/api/streams?url=${encodeURIComponent(absoluteUrl)}`;
+                return trimmedLine.replace(originalUri, proxiedUri);
+
+              } catch (error) {
+                console.error(`❌ Error rewriting manifest URI line: "${trimmedLine}"`, error);
+                return `# Error: ${line}`;
+              }
+            }
             
-            // Skip comments and empty lines
+            // Handle segment URLs (lines that don't start with #)
             if (!trimmedLine || trimmedLine.startsWith('#')) {
               return line;
             }
             
             try {
-              // Handle relative URLs
-              let absoluteUrl: string;
-              if (trimmedLine.startsWith('http')) {
-                absoluteUrl = trimmedLine;
-              } else {
-                absoluteUrl = new URL(trimmedLine, targetUrl).href;
-              }
+              // Handle relative and absolute URLs
+              const absoluteUrl = new URL(trimmedLine, targetUrl).href;
               
               // Validate the rewritten URL host
               const rewrittenHost = new URL(absoluteUrl).hostname;
@@ -214,6 +238,7 @@ export async function GET(request: NextRequest) {
             }
           })
           .join('\n');
+        // --- END: CORRECTED MANIFEST REWRITING LOGIC ---
 
         responseHeaders.set('Content-Type', 'application/vnd.apple.mpegurl');
         responseHeaders.set('Content-Length', Buffer.byteLength(rewrittenManifest, 'utf8').toString());
