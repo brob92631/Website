@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSportsStreams, getItalianStreams } from '@/lib/iptv';
 
-// --- SECURITY: Create a whitelist of allowed hostnames ---
-// We get the streams from our library and extract the hostnames.
-// The proxy will only be allowed to request URLs from these hosts.
-const initializeAllowedHosts = async () => {
+// --- CORRECTED APPROACH: LAZY INITIALIZATION ---
+// We start the async operation once when the module loads, storing the promise.
+// We then 'await' this promise inside the handler. This avoids top-level await
+// while ensuring the list of hosts is only computed once.
+const allowedHostsPromise = (async () => {
   const [sports, italian] = await Promise.all([
     getSportsStreams(),
     getItalianStreams(),
@@ -15,15 +16,19 @@ const initializeAllowedHosts = async () => {
     try {
       hosts.add(new URL(url).hostname);
     } catch (error) {
-      console.error(`Invalid URL in iptv.ts: ${url}`);
+      console.error(`[Startup] Invalid URL in iptv.ts: ${url}`);
     }
   });
+  console.log('Proxy security initialized. Allowed hosts:', hosts);
   return hosts;
-};
-const allowedHosts = await initializeAllowedHosts();
-console.log('Proxy initialized. Allowed hosts:', allowedHosts);
+})();
+
 
 export async function GET(request: NextRequest) {
+  // Await the promise here. On the first request, it will wait for the async
+  // function to finish. On subsequent requests, it will resolve instantly.
+  const allowedHosts = await allowedHostsPromise;
+
   const { searchParams } = new URL(request.url);
   const targetUrl = searchParams.get('url');
 
@@ -32,7 +37,6 @@ export async function GET(request: NextRequest) {
   }
 
   // --- SECURITY CHECK ---
-  // Ensure the requested URL's hostname is in our whitelist.
   try {
     const requestHost = new URL(targetUrl).hostname;
     if (!allowedHosts.has(requestHost)) {
@@ -66,7 +70,6 @@ export async function GET(request: NextRequest) {
       return new Response(`Failed to fetch from origin: ${response.statusText}`, { status: response.status });
     }
 
-    // --- ENHANCED CORS HEADERS ---
     const responseHeaders = new Headers({
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
@@ -74,7 +77,6 @@ export async function GET(request: NextRequest) {
       'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
     });
     
-    // Copy important headers from the original response
     ['content-type', 'content-length', 'content-range', 'accept-ranges', 'last-modified', 'etag', 'cache-control'].forEach(headerName => {
       const headerValue = response.headers.get(headerName);
       if (headerValue) responseHeaders.set(headerName, headerValue);
@@ -84,24 +86,19 @@ export async function GET(request: NextRequest) {
     const isPlaylist = contentType.includes('mpegurl') || targetUrl.endsWith('.m3u8');
 
     if (isPlaylist) {
-      console.log('Processing HLS manifest:', targetUrl);
       const manifestText = await response.text();
       
-      // --- ROBUST URL REWRITING ---
-      // We use the URL constructor to safely resolve relative paths against the manifest's URL.
       const rewrittenManifest = manifestText.split('\n').map(line => {
         const trimmedLine = line.trim();
         if (!trimmedLine || trimmedLine.startsWith('#')) {
-          return line; // Keep comments and empty lines as they are
+          return line;
         }
         try {
-          // Resolve the URL in the line relative to the manifest's own URL
           const absoluteUrl = new URL(trimmedLine, targetUrl).href;
-          // Return the rewritten URL pointing to our proxy
           return `/api/streams?url=${encodeURIComponent(absoluteUrl)}`;
         } catch (error) {
           console.error(`Error rewriting manifest line: "${trimmedLine}"`, error);
-          return line; // Return original line on error
+          return line;
         }
       }).join('\n');
 
@@ -113,8 +110,6 @@ export async function GET(request: NextRequest) {
       });
 
     } else {
-      // It's a video segment, stream it directly
-      console.log('Proxying video segment:', targetUrl);
       return new Response(response.body, {
         status: response.status,
         headers: responseHeaders,
@@ -127,7 +122,7 @@ export async function GET(request: NextRequest) {
     let statusCode = 500;
     if (error instanceof Error && error.message.includes('fetch')) {
       errorMessage = 'Network error: Unable to reach stream source.';
-      statusCode = 502; // Bad Gateway
+      statusCode = 502;
     }
     return new Response(errorMessage, { status: statusCode });
   }
