@@ -154,7 +154,9 @@ export function StreamList({
           <input
             id="search-input"
             type="text"
+            // --- THIS LINE IS FIXED ---
             placeholder={`Search ${streamsToDisplay.length} streams in ${currentCategory.name}... (Press '/' to focus)`}
+            // --- END OF FIX ---
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 bg-card border border-card-hover rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-200"
