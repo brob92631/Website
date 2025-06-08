@@ -17,7 +17,6 @@ function getYouTubeHlsStreamUrl(info: any): string | null {
   if (info?.url && (info.url.includes('.m3u8') || info.protocol === 'hls' || info.mimeType === 'application/x-mpegURL')) {
     return info.url;
   }
-  // Check sources.hls.url for alternative structure (e.g., if play-dl ever supports DM this way)
   if (info?.sources?.hls?.url) {
     return info.sources.hls.url;
   }
@@ -29,7 +28,7 @@ function getYouTubeHlsStreamUrl(info: any): string | null {
 }
 
 export async function GET(request: NextRequest) {
-  const responseHeaders = new Headers({ // For the response FROM our proxy
+  const responseHeaders = new Headers({ 
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
   });
@@ -46,57 +45,44 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Missing URL parameter', { status: 400, headers: responseHeaders });
     }
 
-    // --- Constructing "human-like" fetch headers ---
-    const fetchHeaders = new Headers(); // Use Headers object for easier manipulation
+    const fetchHeaders = new Headers(); 
 
-    // 1. User-Agent
     fetchHeaders.set('User-Agent', customUserAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
-
-    // 2. Accept-Language
     fetchHeaders.set('Accept-Language', customAcceptLanguage || 'en;q=0.9,fr;q=0.8,de;q=0.7');
-    
-    // 3. Accept (General browsing accept, will be overridden for M3U8 later if needed)
     fetchHeaders.set('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9');
-
-    // 4. Other common headers
-    fetchHeaders.set('Accept-Encoding', 'gzip, deflate, br'); // Server will respond with what it supports
+    fetchHeaders.set('Accept-Encoding', 'gzip, deflate, br');
     fetchHeaders.set('Connection', 'keep-alive');
-    fetchHeaders.set('Upgrade-Insecure-Requests', '1'); // For initial page loads, less relevant for direct M3U8
-    fetchHeaders.set('Cache-Control', 'no-cache'); // Ensure fresh manifest/segments
-    fetchHeaders.set('Pragma', 'no-cache'); // For older HTTP/1.0 servers
+    fetchHeaders.set('Upgrade-Insecure-Requests', '1');
+    fetchHeaders.set('Cache-Control', 'no-cache');
+    fetchHeaders.set('Pragma', 'no-cache');
 
-    // 5. Referer - will be set more specifically below
     if (customReferer) {
       fetchHeaders.set('Referer', customReferer);
-      // 6. Origin - set if Referer is present
       try {
         fetchHeaders.set('Origin', new URL(customReferer).origin);
-      } catch (e) { /* ignore if customReferer is not a valid URL for origin derivation */ }
+      } catch (e) { /* ignore */ }
     }
     
-    // 7. X-Forwarded-For (less reliable for bypassing, but can be added)
     if (customXForwardedFor) {
       fetchHeaders.set('X-Forwarded-For', customXForwardedFor);
     }
 
     let effectiveTargetUrl = originalTargetUrl;
-    let isExtractedManifest = false; // True if M3U8 URL comes from play-dl
-    let manifestBaseForReferer: string | undefined = undefined; // To set Referer for segments
+    let isExtractedManifest = false;
+    // let manifestBaseForReferer: string | undefined = undefined; // Not strictly needed here
 
     const ytValidationResult = play.yt_validate(originalTargetUrl);
     if (ytValidationResult === 'video' || ytValidationResult === 'playlist') {
       console.log(`[Proxy YT] Detected YouTube URL type "${ytValidationResult}": ${originalTargetUrl}.`);
-      // For play-dl's internal requests, it uses its own headers.
-      // We are not passing our custom fetchHeaders into play.video_info() to avoid type errors.
       try {
         const streamInfo = await play.video_info(originalTargetUrl);
         const m3u8Url = getYouTubeHlsStreamUrl(streamInfo);
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
           isExtractedManifest = true;
-          manifestBaseForReferer = effectiveTargetUrl; // The M3U8 URL becomes the referer for its segments
-          if (!customReferer) { // If no specific referer was provided for YT, use YouTube as referer for the manifest
-            fetchHeaders.set('Referer', originalTargetUrl); // or just 'https://www.youtube.com/'
+          // manifestBaseForReferer = effectiveTargetUrl; 
+          if (!customReferer) { 
+            fetchHeaders.set('Referer', originalTargetUrl); 
             try { fetchHeaders.set('Origin', new URL(originalTargetUrl).origin); } catch (e) {/*ignore*/}
           }
           console.log(`[Proxy YT] Extracted M3U8: ${effectiveTargetUrl}`);
@@ -108,26 +94,22 @@ export async function GET(request: NextRequest) {
       }
     } else if (originalTargetUrl.includes("dailymotion.com/") || originalTargetUrl.includes("dai.ly/")) {
         console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. play-dl does not support DailyMotion. Attempting to proxy URL directly.`);
-        // If no customReferer for DM, maybe set a generic one.
         if (!customReferer) {
-            fetchHeaders.set('Referer', originalTargetUrl); // Page URL as referer for initial manifest
+            fetchHeaders.set('Referer', originalTargetUrl); 
             try { fetchHeaders.set('Origin', new URL(originalTargetUrl).origin); } catch(e) {/*ignore*/}
         }
-        manifestBaseForReferer = effectiveTargetUrl;
-    } else {
-        // For direct M3U8s or other URLs, effectiveTargetUrl is originalTargetUrl
-        // Referer and Origin are already set if customReferer was provided.
-        // If not, they might be omitted or could default to the target's origin.
-        manifestBaseForReferer = effectiveTargetUrl;
-    }
+        // manifestBaseForReferer = effectiveTargetUrl;
+    } 
+    // else {
+    //     manifestBaseForReferer = effectiveTargetUrl;
+    // }
 
-    // For manifest requests, 'Accept' should indicate M3U8 preference
-    if (effectiveTargetUrl.includes('.m3u8') || isExtractedManifest || (contentType && (contentType.includes('mpegurl') || contentType.includes('m3u8')))) {
+    // MODIFIED: Set Accept header for M3U8 if we know it's an M3U8 URL before fetching
+    if (effectiveTargetUrl.includes('.m3u8') || isExtractedManifest) {
         fetchHeaders.set('Accept', 'application/vnd.apple.mpegurl, application/x-mpegURL, */*;q=0.8');
     }
     
     console.log(`[Proxy] Requesting Effective URL: ${effectiveTargetUrl}`);
-    // console.log('[Proxy] Sending Headers:', Object.fromEntries(fetchHeaders.entries())); // For debugging
 
     const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders });
 
@@ -146,23 +128,19 @@ export async function GET(request: NextRequest) {
       if (response.headers.has(name)) responseHeaders.set(name, response.headers.get(name)!);
     });
 
+    // NOW we declare and use contentType, after the fetch
     const contentType = response.headers.get('content-type') || '';
-    if (isExtractedManifest || contentType.includes('mpegurl') || contentType.includes('m3u8') || (effectiveTargetUrl && effectiveTargetUrl.includes('.m3u8'))) {
+    if (isExtractedManifest || contentType.includes('mpegurl') || contentType.includes('m3u8') || (effectiveTargetUrl.includes('.m3u8') && !contentType) /* Added fallback for .m3u8 URLs with missing content-type */ ) {
       const manifestText = await response.text();
-      // Use the final URL from the response as the base for resolving relative paths in the manifest.
-      // For segments, the Referer should ideally be the manifest URL.
       const actualManifestUrl = response.url; 
 
       let proxySubParams = '';
-      // For segments, we'll use the M3U8 URL as referer if not overridden by a custom one for segments.
-      // We also need to propagate other headers like User-Agent for consistency.
-      const segmentReferer = customReferer || actualManifestUrl; // Prefer custom, fallback to manifest URL
+      const segmentReferer = customReferer || actualManifestUrl; 
       
       if (customUserAgent) proxySubParams += `&userAgent=${encodeURIComponent(customUserAgent)}`;
-      proxySubParams += `&referer=${encodeURIComponent(segmentReferer)}`; // Always send referer for segments
-      if (customAcceptLanguage) proxySubParams += `&acceptLanguage=${encodeURIComponent(customAcceptLanguage)}`;
+      proxySubParams += `&referer=${encodeURIComponent(segmentReferer)}`; 
+      if (customAcceptLanguage) proxySubParams += `&acceptLanguage=${encodeURIComponent(customAcceptLanguage)}`; else proxySubParams += `&acceptLanguage=${encodeURIComponent('en;q=0.9,fr;q=0.8,de;q=0.7')}`;
       if (customXForwardedFor) proxySubParams += `&xForwardedFor=${encodeURIComponent(customXForwardedFor)}`;
-
 
       const rewrittenManifest = manifestText.split('\n').map(line => {
         const trimmedLine = line.trim();
@@ -179,7 +157,7 @@ export async function GET(request: NextRequest) {
                 let absoluteUri = uriMatch[1];
                 try {
                     if (!absoluteUri.startsWith('http://') && !absoluteUri.startsWith('https://')) {
-                         absoluteUri = new URL(absoluteUri, actualManifestUrl).href; // Use actualManifestUrl as base
+                         absoluteUri = new URL(absoluteUri, actualManifestUrl).href;
                     }
                     const proxiedUri = `/api/streams?url=${encodeURIComponent(absoluteUri)}${proxySubParams}`;
                     rewrittenLine = trimmedLine.replace(uriMatch[1], proxiedUri);
@@ -195,7 +173,7 @@ export async function GET(request: NextRequest) {
             let absoluteSegmentUrl = trimmedLine;
             try {
                 if (!absoluteSegmentUrl.startsWith('http://') && !absoluteSegmentUrl.startsWith('https://')) {
-                    absoluteSegmentUrl = new URL(absoluteSegmentUrl, actualManifestUrl).href; // Use actualManifestUrl as base
+                    absoluteSegmentUrl = new URL(absoluteSegmentUrl, actualManifestUrl).href; 
                 }
                 return `/api/streams?url=${encodeURIComponent(absoluteSegmentUrl)}${proxySubParams}`;
             } catch (e) {
