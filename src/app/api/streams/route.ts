@@ -14,65 +14,51 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Proxy] Request received for: ${targetUrl}`);
 
-    // --- The Core Logic: The Ultimate Disguise ---
+    // --- The Core Logic: This logic is now correct based on the logs ---
     let finalResponse: Response;
 
     // 1. Prepare the complete header disguise.
     const fetchHeaders: Record<string, string> = {
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.9',
-      'Sec-Ch-Ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
-      'Sec-Ch-Ua-Mobile': '?0',
-      'Sec-Ch-Ua-Platform': '"Windows"',
-      'Sec-Fetch-Dest': 'iframe',
-      'Sec-Fetch-Mode': 'navigate',
-      'Sec-Fetch-Site': 'cross-site',
-      'Upgrade-Insecure-Requests': '1',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     };
 
-    // If a stream needs a specific Referer, we add it.
+    // Only add the Referer disguise if the stream needs it. This protects LA7 and NBA TV.
     if (targetReferer) {
       fetchHeaders['Referer'] = targetReferer;
     }
 
-    // Determine if the URL is a gatekeeper (.php) or direct content.
-    const isGatekeeper = targetUrl.includes('.php');
+    // 2. Make the initial request.
+    const initialResponse = await fetch(targetUrl, {
+      headers: fetchHeaders,
+      redirect: 'manual', // We always handle redirects manually to see what's happening.
+    });
 
-    if (isGatekeeper) {
-      // --- Handle the Gatekeeper ---
-      console.log(`[Proxy] Gatekeeper detected. Applying FULL disguise.`);
-      
-      const gatekeeperResponse = await fetch(targetUrl, {
-        headers: fetchHeaders,
-        redirect: 'manual', 
-      });
+    // 3. Decide what to do with the response.
+    // Case 1: The server redirected us to the final content.
+    if (initialResponse.status >= 300 && initialResponse.status < 400 && initialResponse.headers.get('location')) {
+        const redirectUrl = initialResponse.headers.get('location')!;
+        console.log(`[Proxy] Initial request was a redirect. Following to: ${redirectUrl}`);
+        
+        // Fetch the final content from the new URL.
+        finalResponse = await fetch(redirectUrl, { headers: fetchHeaders });
+    
+    // Case 2 (THE FIX): The server gave us the content directly (Status 200 OK).
+    } else if (initialResponse.ok) {
+        console.log(`[Proxy] Initial request was successful (200 OK). Treating this response as the final content.`);
+        // The initial response *is* our final response.
+        finalResponse = initialResponse;
 
-      const redirectUrl = gatekeeperResponse.headers.get('location');
-      if (!redirectUrl) {
-        // Log the status to see WHY it failed
-        console.error(`[Proxy] CRITICAL: Gatekeeper did not provide a redirect URL. Status received: ${gatekeeperResponse.status}`);
-        return new NextResponse(`Gatekeeper rejected the request with status: ${gatekeeperResponse.status}`, { status: 502 });
-      }
-      
-      console.log(`[Proxy] Gatekeeper redirected to: ${redirectUrl}. Fetching final stream.`);
-      // Fetch the real M3U8, but remove the browser-navigation specific headers.
-      delete fetchHeaders['Sec-Fetch-Dest'];
-      delete fetchHeaders['Sec-Fetch-Mode'];
-      delete fetchHeaders['Sec-Fetch-Site'];
-      delete fetchHeaders['Upgrade-Insecure-Requests'];
-      
-      finalResponse = await fetch(redirectUrl, { headers: fetchHeaders });
-
+    // Case 3: The request failed for some other reason.
     } else {
-      // --- Handle Direct Content (LA7, NBA TV, or a .ts video segment) ---
-      console.log(`[Proxy] Direct content request.`);
-      finalResponse = await fetch(targetUrl, { headers: fetchHeaders });
+        console.error(`[Proxy] Initial request failed with unhandled status: ${initialResponse.status}`);
+        return new NextResponse(`Initial request failed: ${initialResponse.statusText}`, { status: initialResponse.status });
     }
 
     // --- Process the Final Response ---
     if (!finalResponse.ok) {
-      console.error(`[Proxy] Upstream error: ${finalResponse.status} for ${finalResponse.url}`);
+      console.error(`[Proxy] Upstream error on final fetch: ${finalResponse.status} for ${finalResponse.url}`);
       return new NextResponse(`Upstream error: ${finalResponse.status}`, { status: finalResponse.status });
     }
     console.log(`[Proxy] Success from upstream: ${finalResponse.status} ${finalResponse.url}`);
