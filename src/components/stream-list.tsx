@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Stream } from "@/lib/iptv";
 import { StreamCard } from "./stream-card";
-import { X, Gamepad2, Search, Filter } from "lucide-react";
+import { X, Search, Filter, Star } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const DynamicVideoPlayer = dynamic(
@@ -22,32 +22,94 @@ const DynamicVideoPlayer = dynamic(
 );
 
 interface StreamListProps {
-  sportsStreams: Stream[];
+  featuredStreams: Stream[];
   italianStreams: Stream[];
+  frenchStreams: Stream[];
+  spanishStreams: Stream[];
+  turkishStreams: Stream[];
+  maghrebStreams: Stream[];
+  middleEastStreams: Stream[];
+  greekStreams: Stream[];
+  germanStreams: Stream[];
+  otherEuropeanStreams: Stream[];
+  usaUkGeneralStreams: Stream[];
+  caucasianStreams: Stream[];
 }
 
-export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
+type CategoryKey = 
+  | 'featured' 
+  | 'italian' 
+  | 'french' 
+  | 'spanish' 
+  | 'turkish' 
+  | 'maghreb'
+  | 'middleEast'
+  | 'greek'
+  | 'german'
+  | 'otherEuropean'
+  | 'usaUkGeneral'
+  | 'caucasian';
+
+interface CategoryUIData {
+  name: string;
+  emoji: string | JSX.Element;
+  key: CategoryKey;
+  streams: Stream[];
+}
+
+export function StreamList({ 
+  featuredStreams,
+  italianStreams,
+  frenchStreams,
+  spanishStreams,
+  turkishStreams,
+  maghrebStreams,
+  middleEastStreams,
+  greekStreams,
+  germanStreams,
+  otherEuropeanStreams,
+  usaUkGeneralStreams,
+  caucasianStreams,
+}: StreamListProps) {
   const [selectedStream, setSelectedStream] = useState<Stream | null>(null);
-  const [activeCategory, setActiveCategory] = useState<'sports' | 'italian'>('sports');
+  const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey>('featured');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  
+  const categoriesData: CategoryUIData[] = [
+    { name: "Featured", emoji: <Star className="h-4 w-4"/>, key: 'featured', streams: featuredStreams },
+    { name: "USA/UK", emoji: "🇺🇸/🇬🇧", key: 'usaUkGeneral', streams: usaUkGeneralStreams },
+    { name: "Italian", emoji: "🇮🇹", key: 'italian', streams: italianStreams },
+    { name: "French", emoji: "🇫🇷", key: 'french', streams: frenchStreams },
+    { name: "Spanish", emoji: "🇪🇸", key: 'spanish', streams: spanishStreams },
+    { name: "Turkish", emoji: "🇹🇷", key: 'turkish', streams: turkishStreams },
+    { name: "Arabic ME", emoji: "🇸🇦", key: 'middleEast', streams: middleEastStreams },
+    { name: "Maghreb", emoji: "🇲🇦", key: 'maghreb', streams: maghrebStreams },
+    { name: "Greek", emoji: "🇬🇷", key: 'greek', streams: greekStreams },
+    { name: "German", emoji: "🇩🇪", key: 'german', streams: germanStreams },
+    { name: "Caucasian", emoji: "🇬🇪", key: 'caucasian', streams: caucasianStreams },
+    { name: "Europe Mix", emoji: "🇪🇺", key: 'otherEuropean', streams: otherEuropeanStreams },
+  ];
 
-  const streamsToDisplay = activeCategory === 'sports' ? sportsStreams : italianStreams;
-  const categories = ['all', ...new Set(streamsToDisplay.map(stream => stream.category.toLowerCase()))];
+  const currentCategory = categoriesData.find(cat => cat.key === activeCategoryKey) || categoriesData[0];
+  const streamsToDisplay = currentCategory.streams;
+  const uniqueSubCategories = ['all', ...new Set(streamsToDisplay.map(stream => stream.category.toLowerCase()))];
   
   const filteredStreams = streamsToDisplay.filter(stream => {
-    const matchesSearch = stream.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         stream.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const streamTitle = stream.title || "";
+    const streamDesc = stream.description || "";
+    const streamCat = stream.category || "";
+
+    const matchesSearch = streamTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         streamDesc.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = selectedFilter === 'all' || 
-                         stream.category.toLowerCase() === selectedFilter;
+                         streamCat.toLowerCase() === selectedFilter;
     return matchesSearch && matchesFilter;
   });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setSelectedStream(null);
-      }
+      if (event.key === 'Escape') setSelectedStream(null);
       if (event.key === '/' && !selectedStream) {
         event.preventDefault();
         document.getElementById('search-input')?.focus();
@@ -60,33 +122,29 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
   useEffect(() => {
     setSearchTerm('');
     setSelectedFilter('all');
-  }, [activeCategory]);
+  }, [activeCategoryKey]);
+
+  const CategoryButton = ({ name, emoji, categoryKey, count }: { name: string, emoji: string | JSX.Element, categoryKey: CategoryKey, count: number }) => (
+    <button
+      onClick={() => setActiveCategoryKey(categoryKey)}
+      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 ${
+        activeCategoryKey === categoryKey 
+          ? 'bg-primary text-white shadow-lg scale-105' 
+          : 'bg-card hover:bg-card-hover border border-card-hover'
+      }`}
+    >
+      {emoji}
+      {name} ({count})
+    </button>
+  );
 
   return (
     <>
       {/* Category Toggle */}
-      <div className="mb-6 flex justify-center gap-2">
-        <button
-          onClick={() => setActiveCategory('sports')}
-          className={`flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all duration-200 ${
-            activeCategory === 'sports' 
-              ? 'bg-primary text-white shadow-lg scale-105' 
-              : 'bg-card hover:bg-card-hover border border-card-hover'
-          }`}
-        >
-          <Gamepad2 className="h-4 w-4" />
-          Sports ({sportsStreams.length})
-        </button>
-        <button
-          onClick={() => setActiveCategory('italian')}
-          className={`flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-all duration-200 ${
-            activeCategory === 'italian' 
-              ? 'bg-primary text-white shadow-lg scale-105' 
-              : 'bg-card hover:bg-card-hover border border-card-hover'
-          }`}
-        >
-          🇮🇹 Italian ({italianStreams.length})
-        </button>
+      <div className="mb-6 flex justify-start sm:justify-center gap-2 overflow-x-auto pb-3 -mx-4 px-4">
+        {categoriesData.filter(cat => cat.streams.length > 0).map(cat => (
+          <CategoryButton key={cat.key} name={cat.name} emoji={cat.emoji} categoryKey={cat.key} count={cat.streams.length} />
+        ))}
       </div>
 
       {/* Search and Filter Bar */}
@@ -96,7 +154,7 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
           <input
             id="search-input"
             type="text"
-            placeholder="Search streams... (Press '/' to focus)"
+            placeholder={`Search ${streamsToDisplay.length} streams in ${currentCategory.name}... (Press '/' to focus)`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 bg-card border border-card-hover rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-200"
@@ -105,7 +163,7 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
           <Filter className="h-4 w-4 text-foreground/50 flex-shrink-0" />
-          {categories.map((category) => (
+          {uniqueSubCategories.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedFilter(category)}
@@ -115,7 +173,7 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
                   : 'bg-card hover:bg-card-hover border border-card-hover'
               }`}
             >
-              {category === 'all' ? 'All' : category.charAt(0).toUpperCase() + category.slice(1)}
+              {category === 'all' ? `All (${streamsToDisplay.length})` : category.charAt(0).toUpperCase() + category.slice(1)}
             </button>
           ))}
         </div>
@@ -133,8 +191,22 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
           ))
         ) : (
           <div className="text-center py-12">
-            <div className="text-4xl mb-4">🔍</div>
+            <div className="text-4xl mb-4">😢</div>
             <h3 className="text-lg font-semibold mb-2">No streams found</h3>
+            <p className="text-foreground/60">
+              Try adjusting your search or filter for the "{currentCategory.name}" category.
+            </p>
+             {(searchTerm || selectedFilter !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedFilter('all');
+                }}
+                className="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/80 transition-colors"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -149,7 +221,6 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
             className="relative w-full max-w-6xl aspect-video rounded-xl bg-background shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Stream Info Header */}
             <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-4">
               <div className="flex items-start justify-between">
                 <div>
@@ -165,12 +236,14 @@ export function StreamList({ sportsStreams, italianStreams }: StreamListProps) {
                 </button>
               </div>
             </div>
-
-            {/* Video Player */}
             <div className="w-full h-full bg-black">
               <DynamicVideoPlayer
                 key={selectedStream.id}
-                src={`/api/streams?url=${encodeURIComponent(selectedStream.url)}`}
+                src={
+                  `/api/streams?url=${encodeURIComponent(selectedStream.url)}` +
+                  (selectedStream.referer ? `&referer=${encodeURIComponent(selectedStream.referer)}` : '') +
+                  (selectedStream.userAgent ? `&userAgent=${encodeURIComponent(selectedStream.userAgent)}` : '')
+                }
               />
             </div>
           </div>
