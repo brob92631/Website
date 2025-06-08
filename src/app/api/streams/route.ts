@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import play from 'play-dl'; // Import play-dl
+import play, { type InfoOptions } from 'play-dl'; // MODIFIED: Import InfoOptions type
 
 // Helper to select the best HLS stream from play-dl info
 function getBestHlsStreamUrl(info: any): string | null {
@@ -41,13 +41,12 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Missing URL parameter', { status: 400, headers: responseHeaders });
     }
 
-    // These headers are for YOUR proxy's direct fetch calls
     const fetchHeaders: HeadersInit = {
       'User-Agent': customUserAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
       'Accept-Language': customAcceptLanguage || 'en-US,en;q=0.9,fr-FR;q=0.8,fr;q=0.7',
     };
     if (customReferer) fetchHeaders['Referer'] = customReferer;
-    if (customXForwardedFor) fetchHeaders['X-Forwarded-For'] = customXForwardedFor; // For direct fetch, less likely to be effective than for play-dl source
+    if (customXForwardedFor) fetchHeaders['X-Forwarded-For'] = customXForwardedFor;
     if (customReferer) {
         try { fetchHeaders['Origin'] = new URL(customReferer).origin; } catch (e) { /* ignore */ }
     }
@@ -60,18 +59,11 @@ export async function GET(request: NextRequest) {
     if (ytValidationResult === 'video' || ytValidationResult === 'playlist') {
       console.log(`[Proxy YT] Detected YouTube URL type "${ytValidationResult}": ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        // play-dl uses its own internal fetching logic.
-        // The `source` option is one way to influence its requests for geo-IP based checks.
-        // For more complex header manipulation for play-dl's internal requests,
-        // global configuration of play-dl (e.g., with cookies) would be needed.
-        const playDlOptions: play.InfoOptions = {};
+        const playDlOptions: InfoOptions = {}; // MODIFIED: Use InfoOptions directly
         if (customXForwardedFor) {
             playDlOptions.source = { 'x-forwarded-for': customXForwardedFor };
         }
-        // If play-dl needs specific User-Agent/Referer for its *own* fetches,
-        // you'd typically set them globally or use cookie options if available.
-        // For now, we are not passing fetchHeaders directly into play.video_info as it was causing type errors.
-
+        
         const streamInfo = await play.video_info(originalTargetUrl, playDlOptions);
 
         const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo);
@@ -88,7 +80,7 @@ export async function GET(request: NextRequest) {
     } else if (play.dm_validate(originalTargetUrl)) {
       console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        const playDlOptions: play.InfoOptions = {};
+        const playDlOptions: InfoOptions = {}; // MODIFIED: Use InfoOptions directly
         if (customXForwardedFor) {
             playDlOptions.source = { 'x-forwarded-for': customXForwardedFor };
         }
@@ -111,7 +103,7 @@ export async function GET(request: NextRequest) {
     if (customReferer) console.log(`[Proxy] Using Custom Referer (for direct fetch): ${customReferer}`);
 
 
-    const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders }); // Our direct fetch uses all custom headers
+    const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders });
 
     if (!response.ok) {
       console.error(`[Proxy] Upstream error: ${response.status} for ${effectiveTargetUrl} (final URL: ${response.url})`);
