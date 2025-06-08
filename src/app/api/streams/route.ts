@@ -44,28 +44,31 @@ export async function GET(request: NextRequest) {
       return new NextResponse('Missing URL parameter', { status: 400 });
     }
 
-    console.log(`[Proxy] Request received for: ${targetUrl}`);
+    console.log(`[Proxy] Request for: ${targetUrl}`);
 
-    // --- The Core Logic: Simple and Correct ---
+    // --- The Core Logic: Distinguish Between Gatekeeper and Content ---
     let finalResponse: Response;
     const fetchHeaders: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     };
 
-    // IF a referer is provided, this is a ZUKIPLAY stream.
-    if (targetReferer) {
-      console.log(`[Proxy] Zukiplay stream detected. Applying disguise: Referer=${targetReferer}`);
+    // THIS IS THE FIX: The logic now checks if the URL is a gatekeeper.
+    const isGatekeeper = targetUrl.includes('.php') && targetReferer;
+
+    if (isGatekeeper) {
+      // --- This is a GATEKEEPER stream ---
+      console.log(`[Proxy] Gatekeeper stream detected. Applying disguise: Referer=${targetReferer}`);
       fetchHeaders['Referer'] = targetReferer;
 
-      // First, hit the gatekeeper PHP script
+      // First, hit the gatekeeper script and manually handle the redirect.
       const gatekeeperResponse = await fetch(targetUrl, {
         headers: fetchHeaders,
-        redirect: 'manual', // We MUST handle the redirect ourselves
+        redirect: 'manual', 
       });
 
-      // The gatekeeper should give us a redirect (3xx status)
+      // The gatekeeper MUST give us a redirect (3xx status).
       if (gatekeeperResponse.status < 300 || gatekeeperResponse.status >= 400) {
-        console.error(`[Proxy] Gatekeeper did not redirect. Status: ${gatekeeperResponse.status}`);
+        console.error(`[Proxy] Gatekeeper did not redirect as expected. Status: ${gatekeeperResponse.status}`);
         return new NextResponse('Gatekeeper check failed', { status: 502 });
       }
 
@@ -75,14 +78,19 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Invalid redirect from gatekeeper', { status: 502 });
       }
       
-      console.log(`[Proxy] Gatekeeper redirected to: ${redirectUrl}. Fetching final stream.`);
+      console.log(`[Proxy] Gatekeeper redirected to final stream. Fetching...`);
       // Now, fetch the REAL stream from the URL the gatekeeper gave us.
       finalResponse = await fetch(redirectUrl, { headers: fetchHeaders });
 
     } else {
-      // ELSE, this is a direct stream like NBA TV or LA7.
-      console.log('[Proxy] Direct stream detected. No disguise needed.');
-      // Keep it simple: just fetch the URL directly.
+      // --- This is a DIRECT stream (LA7, NBA TV, or a .ts video segment) ---
+      console.log('[Proxy] Direct stream detected.');
+      // If a referer was passed (for a .ts segment), we still need to use it.
+      if (targetReferer) {
+        fetchHeaders['Referer'] = targetReferer;
+        console.log(`  ... Applying disguise: Referer=${targetReferer}`);
+      }
+      // Just fetch the URL directly.
       finalResponse = await fetch(targetUrl, { headers: fetchHeaders });
     }
 
