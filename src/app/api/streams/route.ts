@@ -81,18 +81,22 @@ export async function GET(request: NextRequest) {
 
     console.log(`🔄 Proxying request to: ${requestHost}`);
 
-    // Enhanced request headers
+    // --- START OF CHANGE ---
+    // Enhanced request headers with Referer/Origin spoofing
     const fetchHeaders: Record<string, string> = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       'Accept': '*/*',
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
+      'Origin': 'https://sporthd.live', // <-- ADDED THIS LINE
+      'Referer': 'https://sporthd.live/', // <-- AND THIS LINE
       'Sec-Fetch-Dest': 'empty',
       'Sec-Fetch-Mode': 'cors',
       'Sec-Fetch-Site': 'cross-site',
       'Cache-Control': 'no-cache',
       'Pragma': 'no-cache',
     };
+    // --- END OF CHANGE ---
 
     // Forward range requests for video streaming
     const rangeHeader = request.headers.get('range');
