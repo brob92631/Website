@@ -1,42 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import play from 'play-dl';
 
-// Helper to select the best HLS stream from play-dl info
-// Corrected based on Perplexity's feedback
-function getBestHlsStreamUrl(info: any): string | null {
-  // Use 'formats' (plural)
+// Helper to select the best HLS stream from play-dl YouTube info
+function getYouTubeHlsStreamUrl(info: any): string | null {
   if (info?.formats && Array.isArray(info.formats)) {
-    // Look for live HLS streams first
     const liveHls = info.formats.find((f: any) =>
       f.isLive && (f.url?.includes('.m3u8') || f.mimeType === 'application/x-mpegURL' || f.protocol === 'hls')
     );
     if (liveHls?.url) return liveHls.url;
 
-    // Otherwise, look for any HLS stream
     const anyHls = info.formats.find((f: any) =>
       f.url?.includes('.m3u8') || f.mimeType === 'application/x-mpegURL' || f.protocol === 'hls'
     );
     if (anyHls?.url) return anyHls.url;
   }
-
-  // Check sources.hls.url for alternative structure (e.g., DailyMotion)
-  if (info?.sources?.hls?.url) {
-    return info.sources.hls.url;
-  }
-
-  // General sources object check (less common for HLS from play-dl's primary parsing)
-  if (info?.sources && typeof info.sources === 'object') {
-    const hlsSource = Object.values(info.sources).find((s: any) =>
-      s?.url && s.url.includes('.m3u8')
-    );
-    if (hlsSource) return (hlsSource as any).url;
-  }
-  
-  // Sometimes, for very direct M3U8s passed to video_info, the URL might be top-level
+  // Fallback if info itself contains a direct M3U8 URL (less common for YouTube via play.video_info)
   if (info?.url && (info.url.includes('.m3u8') || info.protocol === 'hls' || info.mimeType === 'application/x-mpegURL')) {
-      return info.url;
+    return info.url;
   }
-
   return null;
 }
 
@@ -75,41 +56,34 @@ export async function GET(request: NextRequest) {
     if (ytValidationResult === 'video' || ytValidationResult === 'playlist') {
       console.log(`[Proxy YT] Detected YouTube URL type "${ytValidationResult}": ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        const streamInfo = await play.video_info(originalTargetUrl); // Call without options to avoid previous type errors
-        // Corrected call to getBestHlsStreamUrl based on Perplexity's feedback
-        const m3u8Url = getBestHlsStreamUrl(streamInfo);
+        const streamInfo = await play.video_info(originalTargetUrl); // No options for now to ensure build passes
+        const m3u8Url = getYouTubeHlsStreamUrl(streamInfo); // Use the YouTube-specific helper
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
           isExtractedManifest = true;
           console.log(`[Proxy YT] Extracted M3U8: ${effectiveTargetUrl}`);
         } else {
-          console.warn(`[Proxy YT] Could not extract M3U8 from YouTube info for ${originalTargetUrl}. StreamInfo dump:`, JSON.stringify(streamInfo, null, 2).substring(0, 1000));
+          console.warn(`[Proxy YT] Could not extract M3U8 from YouTube info for ${originalTargetUrl}. StreamInfo dump:`, JSON.stringify(streamInfo, null, 2).substring(0,1000));
         }
       } catch (e: any) {
         console.error(`[Proxy YT] play.video_info error for ${originalTargetUrl}:`, e.message, e.stack);
+        // If play-dl fails, we might still try to use the original URL if it happens to be a direct M3U8
+        // but for YouTube page URLs, this is unlikely.
       }
-    } else if (play.dm_validate(originalTargetUrl)) {
-      console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. Attempting stream info extraction...`);
-      try {
-        const streamInfo = await play.video_info(originalTargetUrl); // Call without options
-        // Corrected call to getBestHlsStreamUrl based on Perplexity's feedback
-        const m3u8Url = getBestHlsStreamUrl(streamInfo);
-        if (m3u8Url) {
-          effectiveTargetUrl = m3u8Url;
-          isExtractedManifest = true;
-          console.log(`[Proxy DM] Extracted M3U8: ${effectiveTargetUrl}`);
-        } else {
-          console.warn(`[Proxy DM] Could not extract M3U8 from DailyMotion info for ${originalTargetUrl}. StreamInfo dump:`, JSON.stringify(streamInfo, null, 2).substring(0,1000));
-        }
-      } catch (e: any) {
-        console.error(`[Proxy DM] play.video_info error for ${originalTargetUrl}:`, e.message, e.stack);
-      }
+    } else if (originalTargetUrl.includes("dailymotion.com/") || originalTargetUrl.includes("dai.ly/")) {
+        console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. play-dl does not support DailyMotion. Attempting to proxy URL directly if it's an M3U8.`);
+        // For DailyMotion, since play-dl doesn't support it,
+        // effectiveTargetUrl remains originalTargetUrl.
+        // The proxy will attempt to fetch it. If originalTargetUrl is not a direct M3U8, this will likely fail or not be a stream.
     }
 
+
     console.log(`[Proxy] Requesting Effective URL: ${effectiveTargetUrl}`);
+    // ... (rest of the fetch and manifest rewriting logic remains the same) ...
     if (customUserAgent) console.log(`[Proxy] Using Custom User-Agent (for direct fetch): ${customUserAgent}`);
     if (customReferer) console.log(`[Proxy] Using Custom Referer (for direct fetch): ${customReferer}`);
     if (customXForwardedFor) console.log(`[Proxy] Using Custom X-Forwarded-For (for direct fetch): ${customXForwardedFor}`);
+
 
     const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders });
 
