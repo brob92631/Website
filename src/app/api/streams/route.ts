@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import play, { type InfoOptions } from 'play-dl'; // MODIFIED: Import InfoOptions type
+import play from 'play-dl'; // Default import for play-dl
 
 // Helper to select the best HLS stream from play-dl info
 function getBestHlsStreamUrl(info: any): string | null {
@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
         try { fetchHeaders['Origin'] = new URL(customReferer).origin; } catch (e) { /* ignore */ }
     }
 
-
     let effectiveTargetUrl = originalTargetUrl;
     let isExtractedManifest = false;
 
@@ -59,12 +58,15 @@ export async function GET(request: NextRequest) {
     if (ytValidationResult === 'video' || ytValidationResult === 'playlist') {
       console.log(`[Proxy YT] Detected YouTube URL type "${ytValidationResult}": ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        const playDlOptions: InfoOptions = {}; // MODIFIED: Use InfoOptions directly
-        if (customXForwardedFor) {
-            playDlOptions.source = { 'x-forwarded-for': customXForwardedFor };
-        }
+        // Construct options for play.video_info
+        // TypeScript will infer the type of this object.
+        // If `customXForwardedFor` is undefined, an empty object {} is passed.
+        // `play.video_info` should accept an empty object if all options are optional.
+        const videoInfoOptions = customXForwardedFor 
+          ? { source: { 'x-forwarded-for': customXForwardedFor } } 
+          : {};
         
-        const streamInfo = await play.video_info(originalTargetUrl, playDlOptions);
+        const streamInfo = await play.video_info(originalTargetUrl, videoInfoOptions);
 
         const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo);
         if (m3u8Url) {
@@ -75,16 +77,15 @@ export async function GET(request: NextRequest) {
           console.warn(`[Proxy YT] Could not extract M3U8 from YouTube info for ${originalTargetUrl}`);
         }
       } catch (e: any) {
-        console.error(`[Proxy YT] play.video_info error for ${originalTargetUrl}:`, e.message);
+        console.error(`[Proxy YT] play.video_info error for ${originalTargetUrl}:`, e.message, e.stack);
       }
     } else if (play.dm_validate(originalTargetUrl)) {
       console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. Attempting stream info extraction...`);
       try {
-        const playDlOptions: InfoOptions = {}; // MODIFIED: Use InfoOptions directly
-        if (customXForwardedFor) {
-            playDlOptions.source = { 'x-forwarded-for': customXForwardedFor };
-        }
-        const streamInfo = await play.video_info(originalTargetUrl, playDlOptions);
+        const videoInfoOptions = customXForwardedFor 
+          ? { source: { 'x-forwarded-for': customXForwardedFor } } 
+          : {};
+        const streamInfo = await play.video_info(originalTargetUrl, videoInfoOptions);
         const m3u8Url = getBestHlsStreamUrl(streamInfo.streamingData || streamInfo); 
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
@@ -94,14 +95,13 @@ export async function GET(request: NextRequest) {
           console.warn(`[Proxy DM] Could not extract M3U8 from DailyMotion info for ${originalTargetUrl}`);
         }
       } catch (e: any) {
-        console.error(`[Proxy DM] play.video_info error for ${originalTargetUrl}:`, e.message);
+        console.error(`[Proxy DM] play.video_info error for ${originalTargetUrl}:`, e.message, e.stack);
       }
     }
     
     console.log(`[Proxy] Requesting Effective URL: ${effectiveTargetUrl}`);
     if (customUserAgent) console.log(`[Proxy] Using Custom User-Agent (for direct fetch): ${customUserAgent}`);
     if (customReferer) console.log(`[Proxy] Using Custom Referer (for direct fetch): ${customReferer}`);
-
 
     const response = await fetch(effectiveTargetUrl, { headers: fetchHeaders });
 
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
       const rewrittenManifest = manifestText.split('\n').map(line => {
         const trimmedLine = line.trim();
         if (!trimmedLine || trimmedLine.startsWith('#EXT-X-INDEPENDENT-SEGMENTS')) {
-             if (trimmedLine.startsWith('#EXT-X-STREAM-INF')) {
+             if (trimmedLine.startsWith('#EXT-X-STREAM-INF')) { // Keep stream info lines as is to preserve bitrate/resolution info
                 return line;
             }
         }
