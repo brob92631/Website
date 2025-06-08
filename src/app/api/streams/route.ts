@@ -14,27 +14,35 @@ export async function GET(request: NextRequest) {
 
     console.log(`[Proxy] Request received for: ${targetUrl}`);
 
-    // --- The Core Logic: This is the definitive version ---
+    // --- The Core Logic: The Ultimate Disguise ---
     let finalResponse: Response;
+
+    // 1. Prepare the complete header disguise.
     const fetchHeaders: Record<string, string> = {
+      'Accept': '*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Ch-Ua': '"Not/A)Brand";v="8", "Chromium";v="126", "Google Chrome";v="126"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
+      'Sec-Fetch-Dest': 'iframe',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'cross-site',
+      'Upgrade-Insecure-Requests': '1',
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
     };
 
-    // **THE FIX**: If a stream needs a disguise, we give it the FULL disguise.
+    // If a stream needs a specific Referer, we add it.
     if (targetReferer) {
       fetchHeaders['Referer'] = targetReferer;
-      // The Origin header is the crucial missing piece.
-      fetchHeaders['Origin'] = new URL(targetReferer).origin;
     }
 
-    // Determine if the URL is a gatekeeper (.php) or direct content (.m3u8, .ts, etc.)
+    // Determine if the URL is a gatekeeper (.php) or direct content.
     const isGatekeeper = targetUrl.includes('.php');
 
     if (isGatekeeper) {
       // --- Handle the Gatekeeper ---
-      console.log(`[Proxy] Gatekeeper stream detected. Applying disguise and expecting redirect.`);
+      console.log(`[Proxy] Gatekeeper detected. Applying FULL disguise.`);
       
-      // We must handle the redirect manually.
       const gatekeeperResponse = await fetch(targetUrl, {
         headers: fetchHeaders,
         redirect: 'manual', 
@@ -42,18 +50,23 @@ export async function GET(request: NextRequest) {
 
       const redirectUrl = gatekeeperResponse.headers.get('location');
       if (!redirectUrl) {
-        console.error('[Proxy] CRITICAL: Gatekeeper did not provide a redirect URL.');
-        return new NextResponse('Gatekeeper failed: no redirect location.', { status: 502 });
+        // Log the status to see WHY it failed
+        console.error(`[Proxy] CRITICAL: Gatekeeper did not provide a redirect URL. Status received: ${gatekeeperResponse.status}`);
+        return new NextResponse(`Gatekeeper rejected the request with status: ${gatekeeperResponse.status}`, { status: 502 });
       }
       
-      console.log(`[Proxy] Gatekeeper redirected. Fetching final stream from: ${redirectUrl}`);
-      // Now fetch the real M3U8 playlist from the URL the gatekeeper gave us.
+      console.log(`[Proxy] Gatekeeper redirected to: ${redirectUrl}. Fetching final stream.`);
+      // Fetch the real M3U8, but remove the browser-navigation specific headers.
+      delete fetchHeaders['Sec-Fetch-Dest'];
+      delete fetchHeaders['Sec-Fetch-Mode'];
+      delete fetchHeaders['Sec-Fetch-Site'];
+      delete fetchHeaders['Upgrade-Insecure-Requests'];
+      
       finalResponse = await fetch(redirectUrl, { headers: fetchHeaders });
 
     } else {
-      // --- Handle Direct Content (LA7, NBA TV, or a .ts video segment from a protected stream) ---
+      // --- Handle Direct Content (LA7, NBA TV, or a .ts video segment) ---
       console.log(`[Proxy] Direct content request.`);
-      // Just fetch the URL. The headers are already correctly set (with or without the full disguise).
       finalResponse = await fetch(targetUrl, { headers: fetchHeaders });
     }
 
@@ -95,7 +108,6 @@ export async function GET(request: NextRequest) {
         }
         
         const absoluteSegmentUrl = new URL(trimmedLine, manifestBaseUrl).href;
-        // CRITICAL: Carry the referer forward for every segment request.
         return `/api/streams?url=${encodeURIComponent(absoluteSegmentUrl)}` + 
                (targetReferer ? `&referer=${encodeURIComponent(targetReferer)}` : '');
       }).join('\n');
