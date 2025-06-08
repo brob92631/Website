@@ -37,12 +37,12 @@ interface StreamListProps {
   kurdishStreams: Stream[]; // Added Kurdish
 }
 
-type CategoryKey = 
-  | 'featured' 
-  | 'italian' 
-  | 'french' 
-  | 'spanish' 
-  | 'turkish' 
+type CategoryKey =
+  | 'featured'
+  | 'italian'
+  | 'french'
+  | 'spanish'
+  | 'turkish'
   | 'maghreb'
   | 'middleEast'
   | 'greek'
@@ -59,7 +59,7 @@ interface CategoryUIData {
   streams: Stream[];
 }
 
-export function StreamList({ 
+export function StreamList({
   featuredStreams,
   italianStreams,
   frenchStreams,
@@ -78,7 +78,7 @@ export function StreamList({
   const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey>('featured');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
-  
+
   const categoriesData: CategoryUIData[] = [
     { name: "Featured", emoji: <Star className="h-4 w-4"/>, key: 'featured', streams: featuredStreams },
     { name: "USA/UK", emoji: "🇺🇸/🇬🇧", key: 'usaUkGeneral', streams: usaUkGeneralStreams },
@@ -98,7 +98,7 @@ export function StreamList({
   const currentCategory = categoriesData.find(cat => cat.key === activeCategoryKey) || categoriesData[0];
   const streamsToDisplay = currentCategory.streams;
   const uniqueSubCategories = ['all', ...new Set(streamsToDisplay.map(stream => stream.category.toLowerCase()))];
-  
+
   const filteredStreams = streamsToDisplay.filter(stream => {
     const streamTitle = stream.title || "";
     const streamDesc = stream.description || "";
@@ -106,7 +106,7 @@ export function StreamList({
 
     const matchesSearch = streamTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          streamDesc.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = selectedFilter === 'all' || 
+    const matchesFilter = selectedFilter === 'all' ||
                          streamCat.toLowerCase() === selectedFilter;
     return matchesSearch && matchesFilter;
   });
@@ -132,8 +132,8 @@ export function StreamList({
     <button
       onClick={() => setActiveCategoryKey(categoryKey)}
       className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 ${
-        activeCategoryKey === categoryKey 
-          ? 'bg-primary text-white shadow-lg scale-105' 
+        activeCategoryKey === categoryKey
+          ? 'bg-primary text-white shadow-lg scale-105'
           : 'bg-card hover:bg-card-hover border border-card-hover'
       }`}
     >
@@ -187,10 +187,10 @@ export function StreamList({
       <div className="space-y-3">
         {filteredStreams.length > 0 ? (
           filteredStreams.map((stream) => (
-            <StreamCard 
-              key={stream.id} 
-              stream={stream} 
-              onClick={() => setSelectedStream(stream)} 
+            <StreamCard
+              key={stream.id}
+              stream={stream}
+              onClick={() => setSelectedStream(stream)}
             />
           ))
         ) : (
@@ -217,11 +217,11 @@ export function StreamList({
 
       {/* Video Player Modal */}
       {selectedStream && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
           onClick={() => setSelectedStream(null)}
         >
-          <div 
+          <div
             className="relative w-full max-w-6xl aspect-video rounded-xl bg-background shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
