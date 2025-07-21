@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import play from 'play-dl';
 
+const SPOOFED_REFERER = 'https://tvron.ro/';
+const SPOOFED_ORIGIN = new URL(SPOOFED_REFERER).origin;
+const COMMON_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+
 // Helper to select the best HLS stream from play-dl YouTube info
 function getYouTubeHlsStreamUrl(info: any): string | null {
   if (info?.formats && Array.isArray(info.formats)) {
@@ -46,22 +50,18 @@ export async function GET(request: NextRequest) {
     }
 
     const fetchHeaders = new Headers(); 
+    const effectiveReferer = customReferer || SPOOFED_REFERER;
 
-    fetchHeaders.set('User-Agent', customUserAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
-    fetchHeaders.set('Accept-Language', customAcceptLanguage || 'en;q=0.9,fr;q=0.8,de;q=0.7');
-    fetchHeaders.set('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9');
+    fetchHeaders.set('User-Agent', customUserAgent || COMMON_USER_AGENT);
+    fetchHeaders.set('Accept-Language', customAcceptLanguage || 'en-US,en;q=0.9,ro;q=0.8');
+    fetchHeaders.set('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7');
     fetchHeaders.set('Accept-Encoding', 'gzip, deflate, br');
     fetchHeaders.set('Connection', 'keep-alive');
     fetchHeaders.set('Upgrade-Insecure-Requests', '1');
     fetchHeaders.set('Cache-Control', 'no-cache');
     fetchHeaders.set('Pragma', 'no-cache');
-
-    if (customReferer) {
-      fetchHeaders.set('Referer', customReferer);
-      try {
-        fetchHeaders.set('Origin', new URL(customReferer).origin);
-      } catch (e) { /* ignore */ }
-    }
+    fetchHeaders.set('Referer', effectiveReferer);
+    fetchHeaders.set('Origin', SPOOFED_ORIGIN);
     
     if (customXForwardedFor) {
       fetchHeaders.set('X-Forwarded-For', customXForwardedFor);
@@ -79,10 +79,6 @@ export async function GET(request: NextRequest) {
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
           isExtractedManifest = true;
-          if (!customReferer) { 
-            fetchHeaders.set('Referer', originalTargetUrl); 
-            try { fetchHeaders.set('Origin', new URL(originalTargetUrl).origin); } catch (e) {/*ignore*/}
-          }
           console.log(`[Proxy YT] Extracted M3U8: ${effectiveTargetUrl}`);
         } else {
           console.warn(`[Proxy YT] Could not extract M3U8 from YouTube info for ${originalTargetUrl}. StreamInfo dump:`, JSON.stringify(streamInfo, null, 2).substring(0,1000));
@@ -92,13 +88,8 @@ export async function GET(request: NextRequest) {
       }
     } else if (originalTargetUrl.includes("dailymotion.com/") || originalTargetUrl.includes("dai.ly/")) {
         console.log(`[Proxy DM] Detected DailyMotion URL: ${originalTargetUrl}. play-dl does not support DailyMotion. Attempting to proxy URL directly.`);
-        if (!customReferer) {
-            fetchHeaders.set('Referer', originalTargetUrl); 
-            try { fetchHeaders.set('Origin', new URL(originalTargetUrl).origin); } catch(e) {/*ignore*/}
-        }
     } 
 
-    // MODIFIED: Set Accept header for M3U8 if we know it's an M3U8 URL before fetching
     if (effectiveTargetUrl.includes('.m3u8') || isExtractedManifest) {
         fetchHeaders.set('Accept', 'application/vnd.apple.mpegurl, application/x-mpegURL, */*;q=0.8');
     }
@@ -127,18 +118,17 @@ export async function GET(request: NextRequest) {
       const manifestText = await response.text();
       const actualManifestUrl = response.url; 
 
-      let proxySubParams = '';
-      const segmentReferer = customReferer || actualManifestUrl; 
+      const segmentReferer = customReferer || SPOOFED_REFERER;
       
+      let proxySubParams = '';
       if (customUserAgent) proxySubParams += `&userAgent=${encodeURIComponent(customUserAgent)}`;
       proxySubParams += `&referer=${encodeURIComponent(segmentReferer)}`; 
-      if (customAcceptLanguage) proxySubParams += `&acceptLanguage=${encodeURIComponent(customAcceptLanguage)}`; else proxySubParams += `&acceptLanguage=${encodeURIComponent('en;q=0.9,fr;q=0.8,de;q=0.7')}`;
+      if (customAcceptLanguage) proxySubParams += `&acceptLanguage=${encodeURIComponent(customAcceptLanguage)}`; else proxySubParams += `&acceptLanguage=${encodeURIComponent('en-US,en;q=0.9,ro;q=0.8')}`;
       if (customXForwardedFor) proxySubParams += `&xForwardedFor=${encodeURIComponent(customXForwardedFor)}`;
 
       const rewrittenManifest = manifestText.split('\n').map(line => {
         const trimmedLine = line.trim();
 
-        // Lines starting with # (directives or comments)
         if (trimmedLine.startsWith('#')) {
             let rewrittenLine = line;
             const uriMatch = trimmedLine.match(/URI="([^"]+)"/);
@@ -158,7 +148,6 @@ export async function GET(request: NextRequest) {
             return rewrittenLine;
         }
 
-        // Segment URLs (non-empty, not starting with #)
         if (trimmedLine) {
             let absoluteSegmentUrl = trimmedLine;
             try {
