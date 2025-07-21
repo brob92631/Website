@@ -2,39 +2,25 @@ import type { Stream } from "@/lib/iptv";
 import { PlayCircle, Radio } from "lucide-react";
 
 export function StreamCard({ stream, onClick }: { stream: Stream; onClick: () => void; }) {
-  const getCategoryIcon = (category: string) => {
-    const cat = category.toLowerCase();
-    if (cat.includes('sport')) return '⚽';
-    if (cat.includes('news')) return '📰';
-    if (cat.includes('basketball')) return '🏀';
-    if (cat.includes('football')) return '🏈';
-    if (cat.includes('general')) return '📺';
-    if (cat.includes('music')) return '🎵'; // Added for music channels
-    if (cat.includes('movies')) return '🎬'; // Added for movie channels
-    if (cat.includes('entertainment')) return '🎭'; // Added for entertainment channels
-    if (cat.includes('kids')) return '👧'; // Added for kids channels
-    if (cat.includes('documentary')) return '🐘'; // Added for documentary channels
-    if (cat.includes('business')) return '💼'; // Added for business channels
-    if (cat.includes('culture')) return '🎨'; // Added for culture channels
-    return '📡';
+  const categoryMap: { [key: string]: { icon: string; color: string } } = {
+    'sport': { icon: '⚽', color: 'text-green-400 bg-green-400/10' },
+    'news': { icon: '📰', color: 'text-blue-400 bg-blue-400/10' },
+    'basketball': { icon: '🏀', color: 'text-orange-400 bg-orange-400/10' },
+    'football': { icon: '🏈', color: 'text-purple-400 bg-purple-400/10' },
+    'music': { icon: '🎵', color: 'text-pink-400 bg-pink-400/10' },
+    'movies': { icon: '🎬', color: 'text-indigo-400 bg-indigo-400/10' },
+    'entertainment': { icon: '🎭', color: 'text-yellow-400 bg-yellow-400/10' },
+    'kids': { icon: '👧', color: 'text-cyan-400 bg-cyan-400/10' },
+    'documentary': { icon: '🐘', color: 'text-amber-400 bg-amber-400/10' },
+    'business': { icon: '💼', color: 'text-teal-400 bg-teal-400/10' },
+    'culture': { icon: '🎨', color: 'text-violet-400 bg-violet-400/10' },
+    'general': { icon: '📺', color: 'text-gray-400 bg-gray-400/10' },
   };
 
-  const getCategoryColor = (category: string) => {
-    const cat = category.toLowerCase();
-    if (cat.includes('sport')) return 'text-green-400 bg-green-400/10';
-    if (cat.includes('news')) return 'text-blue-400 bg-blue-400/10';
-    if (cat.includes('basketball')) return 'text-orange-400 bg-orange-400/10';
-    if (cat.includes('football')) return 'text-purple-400 bg-purple-400/10';
-    if (cat.includes('music')) return 'text-pink-400 bg-pink-400/10'; // New color
-    if (cat.includes('movies')) return 'text-indigo-400 bg-indigo-400/10'; // New color
-    if (cat.includes('entertainment')) return 'text-yellow-400 bg-yellow-400/10'; // New color
-    if (cat.includes('kids')) return 'text-cyan-400 bg-cyan-400/10'; // New color
-    if (cat.includes('documentary')) return 'text-amber-400 bg-amber-400/10'; // New color
-    if (cat.includes('business')) return 'text-teal-400 bg-teal-400/10'; // New color
-    if (cat.includes('culture')) return 'text-violet-400 bg-violet-400/10'; // New color
-    if (cat.includes('general')) return 'text-gray-400 bg-gray-400/10';
-    return 'text-primary bg-primary/10';
-  };
+  const normalizedCategory = stream.category.toLowerCase();
+  const { icon, color } = Object.entries(categoryMap).find(([key]) => 
+    normalizedCategory.includes(key)
+  )?.[1] || { icon: '📡', color: 'text-primary bg-primary/10' };
 
   return (
     <button
@@ -58,8 +44,8 @@ export function StreamCard({ stream, onClick }: { stream: Stream; onClick: () =>
           <p className="truncate font-semibold text-foreground group-hover:text-primary transition-colors duration-200">
             {stream.title}
           </p>
-          <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${getCategoryColor(stream.category)}`}>
-            {getCategoryIcon(stream.category)} {stream.category}
+          <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${color}`}>
+            {icon} {stream.category}
           </span>
         </div>
         <p className="truncate text-sm text-foreground/60 group-hover:text-foreground/80 transition-colors duration-200">
