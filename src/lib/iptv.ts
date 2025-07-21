@@ -8,8 +8,8 @@ export interface Stream {
   url: string;
   referer?: string;
   userAgent?: string;
-  acceptLanguage?: string; // Added this as an option if needed later
-  xForwardedFor?: string; // Added this as an option if needed later
+  acceptLanguage?: string; 
+  xForwardedFor?: string; 
 }
 
 const toKebabCase = (str: string) =>
@@ -68,10 +68,10 @@ const allRomanianStreamsData: Stream[] = [
   { id: toKebabCase("Etno TV"), title: "Etno TV", description: "Romanian folk music channel.", category: "Music", url: "https://arwen1.panaka.cfd/etno/usergenrnd7ke5lgt.m3u8" },
   { id: toKebabCase("EuroSport 1"), title: "EuroSport 1", description: "Pan-European sports channel.", category: "Sports", url: "https://jardo111.jardomany.cfd/er01/usergendx0slkgx7dqrnd.m3u8" },
   { id: toKebabCase("EuroSport 2"), title: "EuroSport 2", description: "Pan-European sports channel.", category: "Sports", url: "https://jardo111.jardomany.cfd/er02/usergenje3x9dqrnd.m3u8" },
-  { id: toKebabCase("Sky Showtime 1"), title: "Sky Showtime 1", description: "Movie and series channel.", category: "Movies", url: "https://thor1.syndula.cfd/schi1/usergendxn430rnd.m3u8" }, // Duplicate URL with HBO 2
-  { id: toKebabCase("Sky Showtime 2"), title: "Sky Showtime 2", description: "Movie and series channel.", category: "Movies", url: "https://thor1.syndula.cfd/schi2/usergendxj85trnd.m3u8" }, // Duplicate URL with DIVA
+  { id: toKebabCase("Sky Showtime 1"), title: "Sky Showtime 1", description: "Movie and series channel.", category: "Movies", url: "https://thor1.syndula.cfd/schi1/usergendxn430rnd.m3u8" }, 
+  { id: toKebabCase("Sky Showtime 2"), title: "Sky Showtime 2", description: "Movie and series channel.", category: "Movies", url: "https://thor1.syndula.cfd/schi2/usergendxj85trnd.m3u8" }, 
   { id: toKebabCase("Comedy Central"), title: "Comedy Central", description: "Comedy series channel.", category: "Entertainment", url: "https://saruman1.tharen.cfd/comedi/usergenrx7zo1kr.m3u8" },
-  { id: toKebabCase("DIVA"), title: "DIVA", description: "Female-oriented entertainment channel.", category: "Entertainment", url: "https://thor1.syndula.cfd/diva/usergenm48Qhxrnd.m3u8" }, // Duplicate URL with Sky Showtime 2
+  { id: toKebabCase("DIVA"), title: "DIVA", description: "Female-oriented entertainment channel.", category: "Entertainment", url: "https://thor1.syndula.cfd/diva/usergenm48Qhxrnd.m3u8" }, 
   { id: toKebabCase("C & I"), title: "C & I", description: "Crime & Investigation, documentary channel.", category: "Documentary", url: "https://onyx1.mofta.cfd/crymeinv2/usergen9o4n2srnd.m3u8" },
   { id: toKebabCase("JimJam"), title: "JimJam", description: "Preschool children's channel.", category: "Kids", url: "https://saruman1.tharen.cfd/jimy/usergenq3n0lz7kr.m3u8" },
   { id: toKebabCase("Balcan Music TV"), title: "Balcan Music TV", description: "Music channel featuring Balkan music.", category: "Music", url: "https://arwen1.panaka.cfd/balkmus/usergenko4x0g.m3u8" },
@@ -100,20 +100,6 @@ const featuredStreams: Stream[] = [
   allRomanianStreamsData[44], // EuroSport 1
 ];
 
-// All other country-specific streams are now empty arrays as per the new instruction set.
-const italianStreams: Stream[] = [];
-const frenchStreams: Stream[] = [];
-const spanishStreams: Stream[] = [];
-const turkishStreams: Stream[] = [];
-const maghrebStreams: Stream[] = [];
-const middleEastStreams: Stream[] = [];
-const greekStreams: Stream[] = [];
-const germanStreams: Stream[] = [];
-const otherEuropeanStreams: Stream[] = [];
-const usaUkGeneralStreams: Stream[] = [];
-const caucasianStreams: Stream[] = [];
-const kurdishStreams: Stream[] = [];
-
 // Export functions to get the stream lists.
 export async function getFeaturedStreams(): Promise<Stream[]> {
   return featuredStreams;
@@ -122,42 +108,4 @@ export async function getFeaturedStreams(): Promise<Stream[]> {
 // New export function for all Romanian streams
 export async function getAllRomanianStreams(): Promise<Stream[]> {
   return allRomanianStreamsData;
-}
-
-// All other country-specific getters will return empty arrays
-export async function getItalianStreams(): Promise<Stream[]> {
-  return italianStreams;
-}
-export async function getFrenchStreams(): Promise<Stream[]> {
-  return frenchStreams;
-}
-export async function getTurkishStreams(): Promise<Stream[]> {
-  return turkishStreams;
-}
-export async function getSpanishStreams(): Promise<Stream[]> {
-  return spanishStreams;
-}
-export async function getMaghrebStreams(): Promise<Stream[]> {
-  return maghrebStreams;
-}
-export async function getMiddleEastStreams(): Promise<Stream[]> {
-  return middleEastStreams;
-}
-export async function getGreekStreams(): Promise<Stream[]> {
-  return greekStreams;
-}
-export async function getGermanStreams(): Promise<Stream[]> {
-  return germanStreams;
-}
-export async function getOtherEuropeanStreams(): Promise<Stream[]> {
-  return otherEuropeanStreams;
-}
-export async function getUsaUkGeneralStreams(): Promise<Stream[]> {
-  return usaUkGeneralStreams;
-}
-export async function getCaucasianStreams(): Promise<Stream[]> {
-  return caucasianStreams;
-}
-export async function getKurdishStreams(): Promise<Stream[]> {
-  return kurdishStreams;
 }
