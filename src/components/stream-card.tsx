@@ -9,7 +9,13 @@ export function StreamCard({ stream, onClick }: { stream: Stream; onClick: () =>
     if (cat.includes('basketball')) return '🏀';
     if (cat.includes('football')) return '🏈';
     if (cat.includes('general')) return '📺';
-    if (cat.includes('multi')) return '🎯';
+    if (cat.includes('music')) return '🎵'; // Added for music channels
+    if (cat.includes('movies')) return '🎬'; // Added for movie channels
+    if (cat.includes('entertainment')) return '🎭'; // Added for entertainment channels
+    if (cat.includes('kids')) return '👧'; // Added for kids channels
+    if (cat.includes('documentary')) return '🐘'; // Added for documentary channels
+    if (cat.includes('business')) return '💼'; // Added for business channels
+    if (cat.includes('culture')) return '🎨'; // Added for culture channels
     return '📡';
   };
 
@@ -19,6 +25,13 @@ export function StreamCard({ stream, onClick }: { stream: Stream; onClick: () =>
     if (cat.includes('news')) return 'text-blue-400 bg-blue-400/10';
     if (cat.includes('basketball')) return 'text-orange-400 bg-orange-400/10';
     if (cat.includes('football')) return 'text-purple-400 bg-purple-400/10';
+    if (cat.includes('music')) return 'text-pink-400 bg-pink-400/10'; // New color
+    if (cat.includes('movies')) return 'text-indigo-400 bg-indigo-400/10'; // New color
+    if (cat.includes('entertainment')) return 'text-yellow-400 bg-yellow-400/10'; // New color
+    if (cat.includes('kids')) return 'text-cyan-400 bg-cyan-400/10'; // New color
+    if (cat.includes('documentary')) return 'text-amber-400 bg-amber-400/10'; // New color
+    if (cat.includes('business')) return 'text-teal-400 bg-teal-400/10'; // New color
+    if (cat.includes('culture')) return 'text-violet-400 bg-violet-400/10'; // New color
     if (cat.includes('general')) return 'text-gray-400 bg-gray-400/10';
     return 'text-primary bg-primary/10';
   };
