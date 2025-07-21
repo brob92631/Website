@@ -23,34 +23,12 @@ const DynamicVideoPlayer = dynamic(
 
 interface StreamListProps {
   featuredStreams: Stream[];
-  italianStreams: Stream[];
-  frenchStreams: Stream[];
-  spanishStreams: Stream[];
-  turkishStreams: Stream[];
-  maghrebStreams: Stream[];
-  middleEastStreams: Stream[];
-  greekStreams: Stream[];
-  germanStreams: Stream[];
-  otherEuropeanStreams: Stream[];
-  usaUkGeneralStreams: Stream[];
-  caucasianStreams: Stream[];
-  kurdishStreams: Stream[]; // Added Kurdish
+  romanianStreams: Stream[]; // Updated prop
 }
 
 type CategoryKey =
   | 'featured'
-  | 'italian'
-  | 'french'
-  | 'spanish'
-  | 'turkish'
-  | 'maghreb'
-  | 'middleEast'
-  | 'greek'
-  | 'german'
-  | 'otherEuropean'
-  | 'usaUkGeneral'
-  | 'caucasian'
-  | 'kurdish'; // Added Kurdish
+  | 'romanian'; // Simplified category keys
 
 interface CategoryUIData {
   name: string;
@@ -61,18 +39,7 @@ interface CategoryUIData {
 
 export function StreamList({
   featuredStreams,
-  italianStreams,
-  frenchStreams,
-  spanishStreams,
-  turkishStreams,
-  maghrebStreams,
-  middleEastStreams,
-  greekStreams,
-  germanStreams,
-  otherEuropeanStreams,
-  usaUkGeneralStreams,
-  caucasianStreams,
-  kurdishStreams, // Added Kurdish
+  romanianStreams, // Destructure the new prop
 }: StreamListProps) {
   const [selectedStream, setSelectedStream] = useState<Stream | null>(null);
   const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey>('featured');
@@ -81,18 +48,7 @@ export function StreamList({
 
   const categoriesData: CategoryUIData[] = [
     { name: "Featured", emoji: <Star className="h-4 w-4"/>, key: 'featured', streams: featuredStreams },
-    { name: "USA/UK", emoji: "🇺🇸/🇬🇧", key: 'usaUkGeneral', streams: usaUkGeneralStreams },
-    { name: "Italian", emoji: "🇮🇹", key: 'italian', streams: italianStreams },
-    { name: "French", emoji: "🇫🇷", key: 'french', streams: frenchStreams },
-    { name: "Spanish", emoji: "🇪🇸", key: 'spanish', streams: spanishStreams },
-    { name: "Turkish", emoji: "🇹🇷", key: 'turkish', streams: turkishStreams },
-    { name: "Arabic ME", emoji: "🇸🇦", key: 'middleEast', streams: middleEastStreams },
-    { name: "Maghreb", emoji: "🇲🇦", key: 'maghreb', streams: maghrebStreams },
-    { name: "Greek", emoji: "🇬🇷", key: 'greek', streams: greekStreams },
-    { name: "German", emoji: "🇩🇪", key: 'german', streams: germanStreams },
-    { name: "Caucasian", emoji: "🇬🇪", key: 'caucasian', streams: caucasianStreams },
-    { name: "Kurdish", emoji: "☀️", key: 'kurdish', streams: kurdishStreams }, // Added Kurdish
-    { name: "Europe Mix", emoji: "🇪🇺", key: 'otherEuropean', streams: otherEuropeanStreams },
+    { name: "Romanian", emoji: "🇷🇴", key: 'romanian', streams: romanianStreams }, // New Romanian category
   ];
 
   const currentCategory = categoriesData.find(cat => cat.key === activeCategoryKey) || categoriesData[0];
