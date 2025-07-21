@@ -8,8 +8,8 @@ export interface Stream {
   url: string;
   referer?: string;
   userAgent?: string;
-  acceptLanguage?: string;
-  xForwardedFor?: string;
+  acceptLanguage?: string; // Added this as an option if needed later
+  xForwardedFor?: string; // Added this as an option if needed later
 }
 
 const toKebabCase = (str: string) =>
@@ -20,7 +20,7 @@ const toKebabCase = (str: string) =>
     .replace(/^-+/, '')
     .replace(/-+$/, '');
 
-// Master list of all Romanian streams provided
+// === Master List: All Romanian Streams ===
 const allRomanianStreamsData: Stream[] = [
   { id: toKebabCase("TVR 1"), title: "TVR 1", description: "Romanian public television channel 1.", category: "General", url: "https://ultra2.falconx.cfd/t001/usergend4sdkx9q2rnd.m3u8" },
   { id: toKebabCase("TVR 2"), title: "TVR 2", description: "Romanian public television channel 2.", category: "General", url: "https://thor1.syndula.cfd/tevere2/usergendxl6d4vnd.m3u8" },
@@ -88,7 +88,7 @@ const allRomanianStreamsData: Stream[] = [
   { id: toKebabCase("B1 TV"), title: "B1 TV", description: "Romanian news and general interest channel.", category: "General", url: "https://saruman1.tharen.cfd/b1/usergenrnd840zwl3m.m3u8" },
 ];
 
-// Populate featured streams with a selection from the Romanian list
+// === LIST 1: Featured - Selection of Romanian Streams ===
 const featuredStreams: Stream[] = [
   allRomanianStreamsData[0], // TVR 1
   allRomanianStreamsData[2], // PRO TV
@@ -100,9 +100,7 @@ const featuredStreams: Stream[] = [
   allRomanianStreamsData[44], // EuroSport 1
 ];
 
-// Other categories are intentionally left empty as per the request to "Replace everything with these only".
-// The application structure requires these arrays and export functions to exist,
-// but they will not contain any streams from the provided list.
+// All other country-specific streams are now empty arrays as per the new instruction set.
 const italianStreams: Stream[] = [];
 const frenchStreams: Stream[] = [];
 const spanishStreams: Stream[] = [];
@@ -117,21 +115,27 @@ const caucasianStreams: Stream[] = [];
 const kurdishStreams: Stream[] = [];
 
 // Export functions to get the stream lists.
-// Only featured streams will contain content from the new list.
 export async function getFeaturedStreams(): Promise<Stream[]> {
   return featuredStreams;
 }
+
+// New export function for all Romanian streams
+export async function getAllRomanianStreams(): Promise<Stream[]> {
+  return allRomanianStreamsData;
+}
+
+// All other country-specific getters will return empty arrays
 export async function getItalianStreams(): Promise<Stream[]> {
   return italianStreams;
 }
 export async function getFrenchStreams(): Promise<Stream[]> {
   return frenchStreams;
 }
-export async function getSpanishStreams(): Promise<Stream[]> {
-  return spanishStreams;
-}
 export async function getTurkishStreams(): Promise<Stream[]> {
   return turkishStreams;
+}
+export async function getSpanishStreams(): Promise<Stream[]> {
+  return spanishStreams;
 }
 export async function getMaghrebStreams(): Promise<Stream[]> {
   return maghrebStreams;
@@ -157,8 +161,3 @@ export async function getCaucasianStreams(): Promise<Stream[]> {
 export async function getKurdishStreams(): Promise<Stream[]> {
   return kurdishStreams;
 }
-// Note: A new category for all Romanian streams would require modifying
-// `src/app/page.tsx` and `src/components/stream-list.tsx` to be visible in the UI.
-// As per the instruction to only modify `iptv.ts`, this is not added here.
-// However, all the provided stream data is available in `allRomanianStreamsData`
-// if further UI integration is desired.
