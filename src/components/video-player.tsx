@@ -5,10 +5,10 @@ import Hls from 'hls.js';
 import { Play, RotateCcw, Volume2, VolumeX, Maximize2, Minimize2, Pause } from 'lucide-react';
 
 interface VideoPlayerProps {
-  src: string;
+  initialUrl: string;
 }
 
-export const VideoPlayer = ({ src }: VideoPlayerProps) => {
+export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -25,9 +25,7 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
 
   const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
+    if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
       if (isPlaying) setShowControls(false);
     }, 3000);
@@ -39,49 +37,27 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
     setRetryCount(count => count + 1);
   }, []);
 
-  const handlePlayPause = useCallback(async () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    try {
-      if (video.paused) {
-        await video.play();
-        setIsPlaying(true);
-      } else {
-        video.pause();
-        setIsPlaying(false);
-      }
-    } catch (err) {
-      console.warn('Play/pause failed:', err);
-    }
+  const handlePlayPause = useCallback(() => {
+    videoRef.current?.paused ? videoRef.current?.play() : videoRef.current?.pause();
   }, []);
 
   const handleMuteToggle = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    
-    video.muted = !video.muted;
-    setIsMuted(video.muted);
+    if (!videoRef.current) return;
+    videoRef.current.muted = !videoRef.current.muted;
+    setIsMuted(videoRef.current.muted);
   }, []);
 
-  const handleFullscreenToggle = useCallback(async () => {
+  const handleFullscreenToggle = useCallback(() => {
     if (!containerRef.current) return;
-
-    try {
-      if (!document.fullscreenElement) {
-        await containerRef.current.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (err) {
-      console.warn('Fullscreen toggle failed:', err);
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(err => console.warn(err));
+    } else {
+      document.exitFullscreen().catch(err => console.warn(err));
     }
   }, []);
 
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
@@ -90,80 +66,90 @@ export const VideoPlayer = ({ src }: VideoPlayerProps) => {
     const video = videoRef.current;
     if (!video) return;
 
+    let isMounted = true;
     setIsLoading(true);
     setError(null);
-    setIsPlaying(false);
 
-    const setupHls = () => {
-      const hls = new Hls({
-        debug: false,
-        enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 90,
-      });
+    const resolveAndPlay = async () => {
+      try {
+        // Step 1: Call our new API route to resolve the initial URL
+        const apiUrl = `/api/streams?url=${encodeURIComponent(initialUrl)}`;
+        const response = await fetch(apiUrl);
 
-      hlsRef.current = hls;
-      hls.loadSource(src);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setIsLoading(false);
-        if (video.paused) {
-          video.play().catch(() => console.warn('Autoplay was prevented.'));
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({ error: 'Failed to resolve stream URL' }));
+          throw new Error(errData.error);
         }
-      });
 
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error('HLS Error:', { type: data.type, details: data.details, fatal: data.fatal });
-        if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              setError('Network error. The stream may be offline or blocked.');
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              setError('Media error. Attempting to recover...');
-              hls.recoverMediaError();
-              break;
-            default:
-              setError('A playback error occurred. Please try again.');
-              break;
-          }
+        const data = await response.json();
+        const streamUrl = data.streamUrl;
+
+        if (!isMounted) return;
+
+        // Step 2: Use the resolved URL with Hls.js (fetched by client browser)
+        if (Hls.isSupported()) {
+          if (hlsRef.current) hlsRef.current.destroy();
+          const hls = new Hls({
+             // More aggressive retry strategy for client-side errors
+            manifestLoadingMaxRetry: 5,
+            fragLoadingMaxRetry: 5,
+          });
+          hlsRef.current = hls;
+          hls.loadSource(streamUrl);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (!isMounted) return;
+            setIsLoading(false);
+            video.play().catch(() => console.warn('Autoplay was prevented.'));
+          });
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            console.error('HLS Error:', data);
+            if (data.fatal) {
+              setError('Playback error. The stream may be offline or blocked by its host (CORS policy).');
+              setIsLoading(false);
+            }
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = streamUrl;
+          video.addEventListener('loadedmetadata', () => {
+            if (isMounted) setIsLoading(false);
+          });
+        } else {
+          setError('HLS streaming is not supported in this browser.');
           setIsLoading(false);
         }
-      });
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err.message);
+          setIsLoading(false);
+        }
+      }
     };
 
-    if (hlsRef.current) hlsRef.current.destroy();
+    resolveAndPlay();
 
-    if (Hls.isSupported()) {
-      setupHls();
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = src;
-      video.addEventListener('loadedmetadata', () => {
-        setIsLoading(false);
-        video.play().catch(() => console.warn('Autoplay was prevented.'));
-      });
-    } else {
-      setError('HLS streaming is not supported in your browser.');
-      setIsLoading(false);
-    }
+    return () => {
+      isMounted = false;
+      if (hlsRef.current) hlsRef.current.destroy();
+    };
+  }, [initialUrl, retryCount]);
 
-    const onWaiting = () => setIsLoading(true);
-    const onPlaying = () => { setIsLoading(false); setIsPlaying(true); setError(null); };
-    const onPause = () => setIsPlaying(false);
+  const onWaiting = () => setIsLoading(true);
+  const onPlaying = () => { setIsLoading(false); setIsPlaying(true); };
+  const onPause = () => setIsPlaying(false);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('playing', onPlaying);
     video.addEventListener('pause', onPause);
-
     return () => {
-      if (hlsRef.current) hlsRef.current.destroy();
-      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('playing', onPlaying);
       video.removeEventListener('pause', onPause);
-    };
-  }, [src, retryCount]);
+    }
+  }, []);
 
   return (
     <div 
