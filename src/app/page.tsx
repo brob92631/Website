@@ -1,7 +1,7 @@
 import { StreamList } from "@/components/stream-list";
 import { 
   getFeaturedStreams,
-  getAllRomanianStreams, // New import
+  getAllRomanianStreams, 
 } from "@/lib/iptv";
 import { Tv, Radio, Zap } from "lucide-react";
 import { Suspense } from "react";
@@ -13,16 +13,16 @@ async function StreamData() {
   try {
     const [
       featured, 
-      romanian, // New variable for Romanian streams
+      romanian, 
     ] = await Promise.all([
       getFeaturedStreams(),
-      getAllRomanianStreams(), // Call the new function
+      getAllRomanianStreams(), 
     ]);
 
     return (
       <StreamList 
         featuredStreams={featured}
-        romanianStreams={romanian} // Pass the new prop
+        romanianStreams={romanian} 
       />
     );
   } catch (error) {
