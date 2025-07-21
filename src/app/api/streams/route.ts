@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import play from 'play-dl';
 
 // --- Static, Human-Like Configuration ---
-// We now use a consistent, hardcoded set of headers to mimic a real browser session
-// originating from tvron.ro. This is more robust than forwarding client headers.
 const SPOOFED_REFERER = 'https://tvron.ro/';
 const SPOOFED_ORIGIN = new URL(SPOOFED_REFERER).origin;
 const HUMAN_LIKE_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
@@ -22,7 +20,6 @@ function getYouTubeHlsStreamUrl(info: any): string | null {
     );
     if (anyHls?.url) return anyHls.url;
   }
-  // Simplified checks for other potential structures
   if (info?.url && info.url.includes('.m3u8')) return info.url;
   if (info?.sources?.hls?.url) return info.sources.hls.url;
   
@@ -59,8 +56,9 @@ export async function GET(request: NextRequest) {
     let isExtractedManifest = false;
 
     // Handle YouTube URLs specifically
-    if (play.yt_validate(originalTargetUrl).startsWith('video')) {
-      console.log(`[Proxy YT] Detected YouTube URL: ${originalTargetUrl}.`);
+    const ytValidationResult = play.yt_validate(originalTargetUrl);
+    if (ytValidationResult === 'video' || ytValidationResult === 'playlist') {
+      console.log(`[Proxy YT] Detected YouTube URL type "${ytValidationResult}": ${originalTargetUrl}.`);
       try {
         const streamInfo = await play.video_info(originalTargetUrl);
         const m3u8Url = getYouTubeHlsStreamUrl(streamInfo);
@@ -105,8 +103,6 @@ export async function GET(request: NextRequest) {
       const manifestText = await response.text();
       const actualManifestUrl = response.url; 
 
-      // For all subsequent requests (segments, keys), we only need the core spoofing headers.
-      // This is simpler and ensures consistency.
       const proxySubParams = `&referer=${encodeURIComponent(SPOOFED_REFERER)}`;
 
       const rewriteUrl = (url: string) => {
@@ -115,7 +111,7 @@ export async function GET(request: NextRequest) {
           return `/api/streams?url=${encodeURIComponent(absoluteUrl)}${proxySubParams}`;
         } catch (e) {
           console.warn(`[Proxy] Invalid URL in manifest: "${url}" with base "${actualManifestUrl}".`);
-          return url; // Return original if invalid
+          return url;
         }
       };
 
