@@ -1,18 +1,7 @@
 import { StreamList } from "@/components/stream-list";
 import { 
   getFeaturedStreams,
-  getItalianStreams,
-  getFrenchStreams,
-  getSpanishStreams,
-  getTurkishStreams,
-  getMaghrebStreams,
-  getMiddleEastStreams,
-  getGreekStreams,
-  getGermanStreams,
-  getOtherEuropeanStreams,
-  getUsaUkGeneralStreams,
-  getCaucasianStreams,
-  getKurdishStreams, // Added Kurdish
+  getAllRomanianStreams, // New import
 } from "@/lib/iptv";
 import { Tv, Radio, Zap } from "lucide-react";
 import { Suspense } from "react";
@@ -24,49 +13,16 @@ async function StreamData() {
   try {
     const [
       featured, 
-      italian, 
-      french, 
-      spanish, 
-      turkish, 
-      maghreb,
-      middleEast,
-      greek,
-      german,
-      otherEuropean,
-      usaUkGeneral,
-      caucasian,
-      kurdish, // Added Kurdish
+      romanian, // New variable for Romanian streams
     ] = await Promise.all([
       getFeaturedStreams(),
-      getItalianStreams(),
-      getFrenchStreams(),
-      getSpanishStreams(),
-      getTurkishStreams(),
-      getMaghrebStreams(),
-      getMiddleEastStreams(),
-      getGreekStreams(),
-      getGermanStreams(),
-      getOtherEuropeanStreams(),
-      getUsaUkGeneralStreams(),
-      getCaucasianStreams(),
-      getKurdishStreams(), // Added Kurdish
+      getAllRomanianStreams(), // Call the new function
     ]);
 
     return (
       <StreamList 
         featuredStreams={featured}
-        italianStreams={italian}
-        frenchStreams={french}
-        spanishStreams={spanish}
-        turkishStreams={turkish}
-        maghrebStreams={maghreb}
-        middleEastStreams={middleEast}
-        greekStreams={greek}
-        germanStreams={german}
-        otherEuropeanStreams={otherEuropean}
-        usaUkGeneralStreams={usaUkGeneral}
-        caucasianStreams={caucasian}
-        kurdishStreams={kurdish} // Added Kurdish
+        romanianStreams={romanian} // Pass the new prop
       />
     );
   } catch (error) {
