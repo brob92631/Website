@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import type { Stream } from "@/lib/iptv";
 import { StreamCard } from "./stream-card";
-import { X, Search, Filter, Star } from "lucide-react";
+import { X, Search, Star } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const DynamicVideoPlayer = dynamic(
@@ -12,23 +12,18 @@ const DynamicVideoPlayer = dynamic(
     ssr: false,
     loading: () => (
       <div className="aspect-video w-full bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-2"></div>
-          <p className="text-white text-sm">Loading Player...</p>
-        </div>
+        <div className="w-8 h-8 border-2 border-primary/20 border-t-primary rounded-full animate-spin"></div>
       </div>
-    )
+    ),
   }
 );
 
 interface StreamListProps {
   featuredStreams: Stream[];
-  romanianStreams: Stream[]; 
+  romanianStreams: Stream[];
 }
 
-type CategoryKey =
-  | 'featured'
-  | 'romanian'; 
+type CategoryKey = "featured" | "romanian";
 
 interface CategoryUIData {
   name: string;
@@ -39,107 +34,109 @@ interface CategoryUIData {
 
 export function StreamList({
   featuredStreams,
-  romanianStreams, 
+  romanianStreams,
 }: StreamListProps) {
   const [selectedStream, setSelectedStream] = useState<Stream | null>(null);
-  const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey>('featured');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [activeCategoryKey, setActiveCategoryKey] =
+    useState<CategoryKey>("featured");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const categoriesData: CategoryUIData[] = [
-    { name: "Featured", emoji: <Star className="h-4 w-4"/>, key: 'featured', streams: featuredStreams },
-    { name: "Romanian", emoji: "🇷🇴", key: 'romanian', streams: romanianStreams }, 
+    {
+      name: "Featured",
+      emoji: <Star className="h-4 w-4" />,
+      key: "featured",
+      streams: featuredStreams,
+    },
+    {
+      name: "Romanian",
+      emoji: "🇷🇴",
+      key: "romanian",
+      streams: romanianStreams,
+    },
   ];
 
-  const currentCategory = categoriesData.find(cat => cat.key === activeCategoryKey) || categoriesData[0];
+  const currentCategory =
+    categoriesData.find((cat) => cat.key === activeCategoryKey) ||
+    categoriesData[0];
   const streamsToDisplay = currentCategory.streams;
-  const uniqueSubCategories = ['all', ...new Set(streamsToDisplay.map(stream => stream.category.toLowerCase()))];
 
-  const filteredStreams = streamsToDisplay.filter(stream => {
+  const filteredStreams = streamsToDisplay.filter((stream) => {
     const streamTitle = stream.title || "";
-    const streamDesc = stream.description || "";
     const streamCat = stream.category || "";
-
-    const matchesSearch = streamTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         streamDesc.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = selectedFilter === 'all' ||
-                         streamCat.toLowerCase() === selectedFilter;
-    return matchesSearch && matchesFilter;
+    return (
+      streamTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      streamCat.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSelectedStream(null);
-      if (event.key === '/' && !selectedStream) {
+      if (event.key === "Escape") setSelectedStream(null);
+      if (event.key === "/" && !selectedStream) {
         event.preventDefault();
-        document.getElementById('search-input')?.focus();
+        document.getElementById("search-input")?.focus();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedStream]);
 
   useEffect(() => {
-    setSearchTerm('');
-    setSelectedFilter('all');
+    setSearchTerm("");
   }, [activeCategoryKey]);
 
-  const CategoryButton = ({ name, emoji, categoryKey, count }: { name: string, emoji: string | JSX.Element, categoryKey: CategoryKey, count: number }) => (
+  const CategoryButton = ({
+    name,
+    emoji,
+    categoryKey,
+  }: {
+    name: string;
+    emoji: string | JSX.Element;
+    categoryKey: CategoryKey;
+  }) => (
     <button
       onClick={() => setActiveCategoryKey(categoryKey)}
-      className={`flex-shrink-0 flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-semibold transition-all duration-200 ${
+      className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
         activeCategoryKey === categoryKey
-          ? 'bg-primary text-white shadow-lg scale-105'
-          : 'bg-card hover:bg-card-hover border border-card-hover'
+          ? "bg-primary text-primary-foreground"
+          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
       }`}
     >
       {emoji}
-      {name} ({count})
+      {name}
     </button>
   );
 
   return (
-    <>
-      {/* Category Toggle */}
-      <div className="mb-6 flex justify-start sm:justify-center gap-2 overflow-x-auto pb-3 -mx-4 px-4">
-        {categoriesData.filter(cat => cat.streams.length > 0).map(cat => (
-          <CategoryButton key={cat.key} name={cat.name} emoji={cat.emoji} categoryKey={cat.key} count={cat.streams.length} />
-        ))}
-      </div>
-
-      {/* Search and Filter Bar */}
-      <div className="mb-6 space-y-4">
+    <div className="space-y-6">
+      <div className="space-y-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-foreground/50" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-foreground/50" />
           <input
             id="search-input"
             type="text"
-            placeholder={`Search ${streamsToDisplay.length} streams in ${currentCategory.name}... (Press '/' to focus)`}
+            placeholder={`Search in ${currentCategory.name}... (Press '/' to focus)`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card border border-card-hover rounded-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all duration-200"
+            className="w-full rounded-lg border bg-card py-2.5 pl-10 pr-4 text-base outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </div>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          <Filter className="h-4 w-4 text-foreground/50 flex-shrink-0" />
-          {uniqueSubCategories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedFilter(category)}
-              className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-200 ${
-                selectedFilter === category
-                  ? 'bg-primary text-white'
-                  : 'bg-card hover:bg-card-hover border border-card-hover'
-              }`}
-            >
-              {category === 'all' ? `All (${streamsToDisplay.length})` : category.charAt(0).toUpperCase() + category.slice(1)}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          {categoriesData
+            .filter((cat) => cat.streams.length > 0)
+            .map((cat) => (
+              <CategoryButton
+                key={cat.key}
+                name={cat.name}
+                emoji={cat.emoji}
+                categoryKey={cat.key}
+              />
+            ))}
         </div>
       </div>
 
-      {/* Stream List */}
       <div className="space-y-3">
         {filteredStreams.length > 0 ? (
           filteredStreams.map((stream) => (
@@ -150,66 +147,54 @@ export function StreamList({
             />
           ))
         ) : (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-4">😢</div>
-            <h3 className="text-lg font-semibold mb-2">No streams found</h3>
-            <p className="text-foreground/60">
-              {/* eslint-disable-next-line react/no-unescaped-entities */}
-              Try adjusting your search or filter for the "{currentCategory.name}" category.
-            </p>
-             {(searchTerm || selectedFilter !== 'all') && (
+          <div className="text-center py-16">
+            <p className="text-lg font-medium">No streams found.</p>
+            <p className="text-foreground/60">Try adjusting your search.</p>
+            {searchTerm && (
               <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedFilter('all');
-                }}
-                className="mt-4 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/80 transition-colors"
+                onClick={() => setSearchTerm("")}
+                className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90"
               >
-                Clear filters
+                Clear search
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Video Player Modal */}
       {selectedStream && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-2 sm:p-4 backdrop-blur-sm"
           onClick={() => setSelectedStream(null)}
         >
           <div
-            className="relative w-full max-w-6xl aspect-video rounded-xl bg-background shadow-2xl overflow-hidden"
+            className="relative w-full max-w-5xl aspect-video rounded-lg bg-black shadow-2xl overflow-hidden border"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-white font-semibold text-lg">{selectedStream.title}</h2>
-                  <p className="text-white/70 text-sm">{selectedStream.description}</p>
-                </div>
-                <button
-                  onClick={() => setSelectedStream(null)}
-                  className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all duration-200"
-                  aria-label="Close video player"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
+            <div className="absolute top-2 right-2 z-20">
+              <button
+                onClick={() => setSelectedStream(null)}
+                className="p-2 bg-black/50 text-white/70 hover:text-white hover:bg-black/70 rounded-full transition-all"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <div className="w-full h-full bg-black">
-              <DynamicVideoPlayer
-                key={selectedStream.id}
-                src={
-                  `/api/streams?url=${encodeURIComponent(selectedStream.url)}` +
-                  (selectedStream.referer ? `&referer=${encodeURIComponent(selectedStream.referer)}` : '') +
-                  (selectedStream.userAgent ? `&userAgent=${encodeURIComponent(selectedStream.userAgent)}` : '')
-                }
-              />
-            </div>
+            <DynamicVideoPlayer
+              key={selectedStream.id}
+              src={
+                `/api/streams?url=${encodeURIComponent(selectedStream.url)}` +
+                (selectedStream.referer
+                  ? `&referer=${encodeURIComponent(selectedStream.referer)}`
+                  : "") +
+                (selectedStream.userAgent
+                  ? `&userAgent=${encodeURIComponent(selectedStream.userAgent)}`
+                  : "")
+              }
+            />
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
