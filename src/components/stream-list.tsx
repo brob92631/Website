@@ -180,17 +180,10 @@ export function StreamList({
                 <X className="h-5 w-5" />
               </button>
             </div>
+            {/* Pass the original URL to the player */}
             <DynamicVideoPlayer
               key={selectedStream.id}
-              src={
-                `/api/streams?url=${encodeURIComponent(selectedStream.url)}` +
-                (selectedStream.referer
-                  ? `&referer=${encodeURIComponent(selectedStream.referer)}`
-                  : "") +
-                (selectedStream.userAgent
-                  ? `&userAgent=${encodeURIComponent(selectedStream.userAgent)}`
-                  : "")
-              }
+              initialUrl={selectedStream.url}
             />
           </div>
         </div>
