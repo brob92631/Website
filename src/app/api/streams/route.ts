@@ -69,7 +69,6 @@ export async function GET(request: NextRequest) {
 
     let effectiveTargetUrl = originalTargetUrl;
     let isExtractedManifest = false;
-    // let manifestBaseForReferer: string | undefined = undefined; // Not strictly needed here
 
     const ytValidationResult = play.yt_validate(originalTargetUrl);
     if (ytValidationResult === 'video' || ytValidationResult === 'playlist') {
@@ -80,7 +79,6 @@ export async function GET(request: NextRequest) {
         if (m3u8Url) {
           effectiveTargetUrl = m3u8Url;
           isExtractedManifest = true;
-          // manifestBaseForReferer = effectiveTargetUrl; 
           if (!customReferer) { 
             fetchHeaders.set('Referer', originalTargetUrl); 
             try { fetchHeaders.set('Origin', new URL(originalTargetUrl).origin); } catch (e) {/*ignore*/}
@@ -98,11 +96,7 @@ export async function GET(request: NextRequest) {
             fetchHeaders.set('Referer', originalTargetUrl); 
             try { fetchHeaders.set('Origin', new URL(originalTargetUrl).origin); } catch(e) {/*ignore*/}
         }
-        // manifestBaseForReferer = effectiveTargetUrl;
     } 
-    // else {
-    //     manifestBaseForReferer = effectiveTargetUrl;
-    // }
 
     // MODIFIED: Set Accept header for M3U8 if we know it's an M3U8 URL before fetching
     if (effectiveTargetUrl.includes('.m3u8') || isExtractedManifest) {
@@ -128,9 +122,8 @@ export async function GET(request: NextRequest) {
       if (response.headers.has(name)) responseHeaders.set(name, response.headers.get(name)!);
     });
 
-    // NOW we declare and use contentType, after the fetch
     const contentType = response.headers.get('content-type') || '';
-    if (isExtractedManifest || contentType.includes('mpegurl') || contentType.includes('m3u8') || (effectiveTargetUrl.includes('.m3u8') && !contentType) /* Added fallback for .m3u8 URLs with missing content-type */ ) {
+    if (isExtractedManifest || contentType.includes('mpegurl') || contentType.includes('m3u8') || (effectiveTargetUrl.includes('.m3u8') && !contentType)) {
       const manifestText = await response.text();
       const actualManifestUrl = response.url; 
 
@@ -144,12 +137,8 @@ export async function GET(request: NextRequest) {
 
       const rewrittenManifest = manifestText.split('\n').map(line => {
         const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine.startsWith('#EXT-X-INDEPENDENT-SEGMENTS')) {
-             if (trimmedLine.startsWith('#EXT-X-STREAM-INF')) {
-                return line;
-            }
-        }
 
+        // Lines starting with # (directives or comments)
         if (trimmedLine.startsWith('#')) {
             let rewrittenLine = line;
             const uriMatch = trimmedLine.match(/URI="([^"]+)"/);
@@ -169,6 +158,7 @@ export async function GET(request: NextRequest) {
             return rewrittenLine;
         }
 
+        // Segment URLs (non-empty, not starting with #)
         if (trimmedLine) {
             let absoluteSegmentUrl = trimmedLine;
             try {
