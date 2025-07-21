@@ -23,12 +23,12 @@ const DynamicVideoPlayer = dynamic(
 
 interface StreamListProps {
   featuredStreams: Stream[];
-  romanianStreams: Stream[]; // Updated prop
+  romanianStreams: Stream[]; 
 }
 
 type CategoryKey =
   | 'featured'
-  | 'romanian'; // Simplified category keys
+  | 'romanian'; 
 
 interface CategoryUIData {
   name: string;
@@ -39,7 +39,7 @@ interface CategoryUIData {
 
 export function StreamList({
   featuredStreams,
-  romanianStreams, // Destructure the new prop
+  romanianStreams, 
 }: StreamListProps) {
   const [selectedStream, setSelectedStream] = useState<Stream | null>(null);
   const [activeCategoryKey, setActiveCategoryKey] = useState<CategoryKey>('featured');
@@ -48,7 +48,7 @@ export function StreamList({
 
   const categoriesData: CategoryUIData[] = [
     { name: "Featured", emoji: <Star className="h-4 w-4"/>, key: 'featured', streams: featuredStreams },
-    { name: "Romanian", emoji: "🇷🇴", key: 'romanian', streams: romanianStreams }, // New Romanian category
+    { name: "Romanian", emoji: "🇷🇴", key: 'romanian', streams: romanianStreams }, 
   ];
 
   const currentCategory = categoriesData.find(cat => cat.key === activeCategoryKey) || categoriesData[0];
