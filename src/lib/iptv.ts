@@ -28,7 +28,7 @@ const allRomanianStreamsData: Stream[] = [
   { id: toKebabCase("TVR 1"), title: "TVR 1", description: "Romanian public television channel 1.", category: "General", url: "https://ultra2.falconx.cfd/t001/usergend4sdkx9q2rnd.m3u8", backupUrls: [] },
   { id: toKebabCase("TVR 2"), title: "TVR 2", description: "Romanian public television channel 2.", category: "General", url: "https://thor1.syndula.cfd/tevere2/usergendxl6d4vnd.m3u8", backupUrls: [] },
   { id: toKebabCase("PRO TV"), title: "PRO TV", description: "Major Romanian private television channel.", category: "General", url: "https://omega1.visionxmans.cfd/porky/usergenx7240lrnd.m3u8", backupUrls: [] },
-  { id: toKebabCase("ANTENA 1"), title: "ANTENA 1", description: "Popular Romanian entertainment channel.", category: "General", url: "https://hokrus113.zokares.cfd/ah1/usergenx304Jtlrnd.m3u8", backupUrls: [] },
+  { id: toKebabCase("ANTENA 1"), title: "ANTENA 1", description: "Popular Romanian entertainment channel.", category: "General", url: "http://myteve.online:8080/34223073/2cdb1b8d70/2233", backupUrls: [] },
   { id: toKebabCase("KANAL D"), title: "KANAL D", description: "Romanian private general entertainment channel.", category: "General", url: "https://arwen1.panaka.cfd/canald/usergenxq0jl72l0rnd.m3u8", backupUrls: [] },
   { id: toKebabCase("PRIMA TV"), title: "PRIMA TV", description: "Romanian private general entertainment channel.", category: "General", url: "https://saruman1.tharen.cfd/prima/usergenrnd8qxl92r.m3u8", backupUrls: [] },
   { id: toKebabCase("PRO CINEMA"), title: "PRO CINEMA", description: "Romanian movie channel from Pro TV group.", category: "Movies", url: "https://saruman1.tharen.cfd/porkynema/usergenrnd0ek16an4l.m3u8", backupUrls: [] },
