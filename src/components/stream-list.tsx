@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import type { Stream } from "@/lib/iptv";
 import { StreamCard } from "./stream-card";
 import { X, Search, Star } from "lucide-react";
@@ -31,6 +31,36 @@ interface CategoryUIData {
   key: CategoryKey;
   streams: Stream[];
 }
+
+// Memoized CategoryButton to prevent re-renders
+const CategoryButton = memo(
+  ({
+    name,
+    emoji,
+    categoryKey,
+    isActive,
+    onClick,
+  }: {
+    name: string;
+    emoji: string | JSX.Element;
+    categoryKey: CategoryKey;
+    isActive: boolean;
+    onClick: (key: CategoryKey) => void;
+  }) => (
+    <button
+      onClick={() => onClick(categoryKey)}
+      className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+        isActive
+          ? "bg-primary text-primary-foreground"
+          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+      }`}
+    >
+      {emoji}
+      {name}
+    </button>
+  )
+);
+CategoryButton.displayName = "CategoryButton";
 
 export function StreamList({
   featuredStreams,
@@ -70,9 +100,21 @@ export function StreamList({
     );
   });
 
+  const handleSelectStream = useCallback((stream: Stream) => {
+    setSelectedStream(stream);
+  }, []);
+
+  const handleSetCategory = useCallback((key: CategoryKey) => {
+    setActiveCategoryKey(key);
+  }, []);
+
+  const handleClosePlayer = useCallback(() => {
+    setSelectedStream(null);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedStream(null);
+      if (event.key === "Escape") handleClosePlayer();
       if (event.key === "/" && !selectedStream) {
         event.preventDefault();
         document.getElementById("search-input")?.focus();
@@ -80,33 +122,11 @@ export function StreamList({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedStream]);
+  }, [selectedStream, handleClosePlayer]);
 
   useEffect(() => {
     setSearchTerm("");
   }, [activeCategoryKey]);
-
-  const CategoryButton = ({
-    name,
-    emoji,
-    categoryKey,
-  }: {
-    name: string;
-    emoji: string | JSX.Element;
-    categoryKey: CategoryKey;
-  }) => (
-    <button
-      onClick={() => setActiveCategoryKey(categoryKey)}
-      className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-        activeCategoryKey === categoryKey
-          ? "bg-primary text-primary-foreground"
-          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-      }`}
-    >
-      {emoji}
-      {name}
-    </button>
-  );
 
   return (
     <div className="space-y-6">
@@ -132,6 +152,8 @@ export function StreamList({
                 name={cat.name}
                 emoji={cat.emoji}
                 categoryKey={cat.key}
+                isActive={activeCategoryKey === cat.key}
+                onClick={handleSetCategory}
               />
             ))}
         </div>
@@ -143,7 +165,7 @@ export function StreamList({
             <StreamCard
               key={stream.id}
               stream={stream}
-              onClick={() => setSelectedStream(stream)}
+              onClick={handleSelectStream}
             />
           ))
         ) : (
@@ -165,7 +187,7 @@ export function StreamList({
       {selectedStream && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 p-2 sm:p-4 backdrop-blur-sm"
-          onClick={() => setSelectedStream(null)}
+          onClick={handleClosePlayer}
         >
           <div
             className="relative w-full max-w-5xl aspect-video rounded-lg bg-black shadow-2xl overflow-hidden border"
@@ -173,17 +195,16 @@ export function StreamList({
           >
             <div className="absolute top-2 right-2 z-20">
               <button
-                onClick={() => setSelectedStream(null)}
+                onClick={handleClosePlayer}
                 className="p-2 bg-black/50 text-white/70 hover:text-white hover:bg-black/70 rounded-full transition-all"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            {/* Pass the original URL to the player */}
             <DynamicVideoPlayer
               key={selectedStream.id}
-              initialUrl={selectedStream.url}
+              stream={selectedStream}
             />
           </div>
         </div>
