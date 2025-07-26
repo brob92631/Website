@@ -3,12 +3,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Hls from 'hls.js';
 import { Play, RotateCcw, Volume2, VolumeX, Maximize2, Minimize2, Pause } from 'lucide-react';
+import type { Stream } from '@/lib/iptv';
 
 interface VideoPlayerProps {
-  initialUrl: string;
+  stream: Stream;
 }
 
-export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
+export const VideoPlayer = ({ stream }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,7 +39,8 @@ export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
   }, []);
 
   const handlePlayPause = useCallback(() => {
-    videoRef.current?.paused ? videoRef.current?.play() : videoRef.current?.pause();
+    if (!videoRef.current) return;
+    videoRef.current.paused ? videoRef.current.play() : videoRef.current.pause();
   }, []);
 
   const handleMuteToggle = useCallback(() => {
@@ -50,9 +52,9 @@ export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
   const handleFullscreenToggle = useCallback(() => {
     if (!containerRef.current) return;
     if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(err => console.warn(err));
+      containerRef.current.requestFullscreen().catch(err => console.warn(`Fullscreen request failed: ${err.message}`));
     } else {
-      document.exitFullscreen().catch(err => console.warn(err));
+      document.exitFullscreen().catch(err => console.warn(`Exit fullscreen failed: ${err.message}`));
     }
   }, []);
 
@@ -72,13 +74,21 @@ export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
 
     const resolveAndPlay = async () => {
       try {
-        // Step 1: Call our new API route to resolve the initial URL
-        const apiUrl = `/api/streams?url=${encodeURIComponent(initialUrl)}`;
-        const response = await fetch(apiUrl);
+        // Step 1: Call our intelligent API route to resolve the best URL
+        const apiUrl = new URL('/api/streams', window.location.origin);
+        apiUrl.searchParams.set('url', stream.url);
+        if (stream.backupUrls) {
+          stream.backupUrls.forEach(backupUrl => {
+            if (backupUrl) { // Ensure backup URL is not empty
+              apiUrl.searchParams.append('backups', backupUrl);
+            }
+          });
+        }
+        const response = await fetch(apiUrl.toString());
 
         if (!response.ok) {
-          const errData = await response.json().catch(() => ({ error: 'Failed to resolve stream URL' }));
-          throw new Error(errData.error);
+          const errData = await response.json().catch(() => ({ error: 'Failed to resolve stream. The server returned an invalid response.' }));
+          throw new Error(errData.error || 'Failed to resolve stream.');
         }
 
         const data = await response.json();
@@ -86,11 +96,10 @@ export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
 
         if (!isMounted) return;
 
-        // Step 2: Use the resolved URL with Hls.js (fetched by client browser)
+        // Step 2: Use the resolved URL with Hls.js
         if (Hls.isSupported()) {
           if (hlsRef.current) hlsRef.current.destroy();
           const hls = new Hls({
-             // More aggressive retry strategy for client-side errors
             manifestLoadingMaxRetry: 5,
             fragLoadingMaxRetry: 5,
           });
@@ -100,7 +109,7 @@ export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             if (!isMounted) return;
             setIsLoading(false);
-            video.play().catch(() => console.warn('Autoplay was prevented.'));
+            video.play().catch(() => console.warn('Autoplay was prevented. User interaction is required to play.'));
           });
           hls.on(Hls.Events.ERROR, (event, data) => {
             console.error('HLS Error:', data);
@@ -130,25 +139,29 @@ export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
 
     return () => {
       isMounted = false;
-      if (hlsRef.current) hlsRef.current.destroy();
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+      }
     };
-  }, [initialUrl, retryCount]);
-
-  const onWaiting = () => setIsLoading(true);
-  const onPlaying = () => { setIsLoading(false); setIsPlaying(true); };
-  const onPause = () => setIsPlaying(false);
+  }, [stream, retryCount]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    const onWaiting = () => setIsLoading(true);
+    const onPlaying = () => { setIsLoading(false); setIsPlaying(true); };
+    const onPause = () => setIsPlaying(false);
+
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('playing', onPlaying);
     video.addEventListener('pause', onPause);
+
     return () => {
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('playing', onPlaying);
       video.removeEventListener('pause', onPause);
-    }
+    };
   }, []);
 
   return (
@@ -169,7 +182,7 @@ export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
       />
       
       {isLoading && !error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none">
           <div className="w-10 h-10 border-2 border-primary/50 border-t-primary rounded-full animate-spin"></div>
         </div>
       )}
@@ -191,14 +204,14 @@ export const VideoPlayer = ({ initialUrl }: VideoPlayerProps) => {
       )}
 
       {!isPlaying && !isLoading && !error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={handlePlayPause}>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm cursor-pointer" onClick={handlePlayPause}>
           <div className="w-20 h-20 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 border border-white/20">
             <Play className="w-8 h-8 text-white ml-1" fill="currentColor" />
           </div>
         </div>
       )}
 
-      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 md:p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 md:p-4 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-3">
             <button onClick={handlePlayPause} className="p-2 text-white bg-black/40 hover:bg-black/60 rounded-full transition-colors">
