@@ -1,16 +1,18 @@
+import { memo } from "react";
 import type { Stream } from "@/lib/iptv";
 import { Play, ChevronRight } from "lucide-react";
 
-export function StreamCard({
-  stream,
-  onClick,
-}: {
+interface StreamCardProps {
   stream: Stream;
-  onClick: () => void;
-}) {
+  onClick: (stream: Stream) => void;
+}
+
+export const StreamCard = memo(({ stream, onClick }: StreamCardProps) => {
+  const handleClick = () => onClick(stream);
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       className="group flex w-full items-center gap-4 rounded-lg border bg-card p-4 text-left transition-colors hover:bg-secondary/50"
     >
       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground">
@@ -29,4 +31,6 @@ export function StreamCard({
       <ChevronRight className="h-5 w-5 flex-shrink-0 text-foreground/50 transition-transform group-hover:translate-x-1" />
     </button>
   );
-}
+});
+
+StreamCard.displayName = "StreamCard";
